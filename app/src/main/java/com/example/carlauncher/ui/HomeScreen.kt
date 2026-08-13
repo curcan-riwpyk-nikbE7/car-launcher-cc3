@@ -271,6 +271,15 @@ fun HomeScreen(
                 // Box нужен, чтобы значки легли на картинку, а не отняли
                 // высоту у карточки.
                 Box(modifier = Modifier.weight(1.35f).fillMaxHeight()) {
+                if (SettingsStore.speedMode.value == "video") {
+                    VideoCard(
+                        speedKmh = speedKmh,
+                        blockOnDrive = SettingsStore.videoBlockOnDrive.value,
+                        // Возврат к машине тем же кубиком, что и уход
+                        onSwitchCard = { SettingsStore.setSpeedMode("embed") },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else
                 CarCard(
                     speedKmh = speedKmh,
                     showSpeed = SettingsStore.showSpeed.value,
@@ -606,6 +615,12 @@ fun HomeScreen(
             freeformAvailable = FreeformLauncher.isAvailable(context),
             currentArea = SettingsStore.speedArea.value,
             onAreaChange = { SettingsStore.setSpeedArea(it) },
+            onPickVideo = {
+                // Приложение выбирать не надо — список видео свой,
+                // поэтому диалог просто закрывается.
+                showSpeedChoice = false
+                SettingsStore.setSpeedMode("video")
+            },
             onPickEmbed = {
                 showSpeedChoice = false
                 pendingMode = "embed"

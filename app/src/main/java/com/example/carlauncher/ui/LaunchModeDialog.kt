@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.material.icons.rounded.PictureInPicture
+import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.VerticalSplit
 import androidx.compose.material3.AlertDialog
@@ -44,6 +45,7 @@ fun LaunchModeDialog(
     onAreaChange: (String) -> Unit = {},
     onPickEmbed: () -> Unit = {},
     onPickFreeform: () -> Unit = {},
+    onPickVideo: () -> Unit = {},
     onPickSplit: () -> Unit,
     onPickFullscreen: () -> Unit,
     onClearApp: () -> Unit,
@@ -76,6 +78,14 @@ fun LaunchModeDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Первым пунктом — единственный способ показать видео
+                // прямо в карточке без прав прошивки.
+                ModeRow(
+                    icon = Icons.Rounded.SmartDisplay,
+                    title = "Видео в карточке",
+                    subtitle = "Свой список роликов, играет внутри лаунчера",
+                    onClick = onPickVideo
+                )
                 ModeRow(
                     icon = Icons.Rounded.Dashboard,
                     title = "Встроить в карточку",
