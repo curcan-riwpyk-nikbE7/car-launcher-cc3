@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Car Launcher</string>
+
+    <!-- Общее -->
+    <string name="back">Назад</string>
+    <string name="cancel">Отмена</string>
+    <string name="clear">Очистить</string>
+    <string name="close">Закрыть</string>
+    <string name="not_assigned">Не назначено</string>
+    <string name="add">Add</string>
+    <string name="on">Включено</string>
+    <string name="off">Выключено</string>
+
+    <!-- Главный экран -->
+    <string name="apps">Приложения</string>
+    <string name="radio">Радио</string>
+    <string name="all_apps">Все приложения</string>
+    <string name="navigation">Навигация</string>
+    <string name="climate">Климат</string>
+    <string name="lights">Свет</string>
+    <string name="speed_unit">km/h</string>
+    <string name="on_air">В эфире</string>
+    <string name="paused">Пауза</string>
+    <string name="open_player">Открыть плеер</string>
+
+    <!-- Плеер -->
+    <string name="no_playback">Нет воспроизведения</string>
+    <string name="open_player_hint">Откройте плеер</string>
+    <string name="unknown_track">Неизвестный трек</string>
+    <string name="no_seek_support">Этот плеер не поддерживает перемотку</string>
+
+    <!-- Жесты -->
+    <string name="next_track">Следующий трек</string>
+    <string name="prev_track">Предыдущий трек</string>
+    <string name="volume">Громкость</string>
+
+    <!-- Трип-компьютер -->
+    <string name="trip_distance">Пробег</string>
+    <string name="trip_average">Средняя</string>
+    <string name="trip_max">Максимум</string>
+    <string name="trip_time">В пути</string>
+    <string name="trip_reset">Сбросить поездку</string>
+
+    <!-- Настройки -->
+    <string name="settings_title">Настройки лаунчера</string>
+    <string name="tab_appearance">Оформление</string>
+    <string name="tab_gestures">Жесты</string>
+    <string name="tab_apps">Приложения</string>
+    <string name="tab_screen">Экран</string>
+    <string name="tab_system">Система</string>
+    <string name="gestures_enabled">Управление жестами</string>
+    <string name="swipe_threshold">Порог смены трека</string>
+    <string name="volume_step">Шаг громкости</string>
+    <string name="haptic">Вибро-отклик</string>
+    <string name="keep_screen_on">Не гасить экран</string>
+    <string name="fullscreen">Полный экран</string>
+    <string name="speedometer">Спидометр</string>
+    <string name="night_mode">Ночной режим</string>
+    <string name="wallpaper">Обои</string>
+    <string name="bt_autoplay">Музыка при подключении</string>
+    <string name="notification_access">Доступ к уведомлениям</string>
+    <string name="widgets">Виджеты</string>
+    <string name="reset_settings">Сброс настроек</string>
+    <string name="reset_confirm">Точно сбросить?</string>
+
+    <!-- Диалоги -->
+    <string name="pick_app">Выберите приложение</string>
+    <string name="add_to_favorites">В избранное</string>
+    <string name="app_info">О приложении</string>
+    <string name="uninstall">Удалить</string>
+    <string name="disable">Отключить</string>
+
+    <!-- Поиск и пустые состояния -->
+    <string name="search_hint">Поиск приложения</string>
+    <string name="loading_apps">Загрузка приложений…</string>
+    <string name="nothing_found">Ничего не найдено</string>
+    <string name="apps_not_found">Приложения не найдены</string>
+
+    <!-- Баннер -->
+    <string name="setup_title">Сделайте Car Launcher главным экраном</string>
+    <string name="setup_subtitle">Иначе кнопка «Домой» будет открывать старый лаунчер</string>
+    <string name="setup_action">Назначить</string>
+</resources>

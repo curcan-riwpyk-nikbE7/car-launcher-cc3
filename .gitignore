@@ -1,0 +1,16 @@
+# Сборочный мусор
+build/
+app/build/
+.gradle/
+local.properties
+*.iml
+.idea/
+
+# Ключи подписи не должны попадать в публичный репозиторий
+keys/
+*.jks
+*.keystore
+
+# Готовые APK раздаются через Releases, а не через исходники
+*.apk
+*.idsig

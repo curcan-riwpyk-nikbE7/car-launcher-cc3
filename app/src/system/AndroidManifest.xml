@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Системная сборка. Работает ТОЛЬКО если прошивка головного устройства
+  подписана дефолтным ключом platform из AOSP (так собрано большинство
+  китайских ГУ: FYT, XYAUTO, TOPWAY, Unisoc/Spreadtrum). Если у производителя
+  свой ключ — установка не пройдёт, тогда ставим standard-сборку.
+
+  sharedUserId="android.uid.system" переводит процесс в системного
+  пользователя. Только тогда система реально отдаёт права ниже.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:sharedUserId="android.uid.system"
+    tools:ignore="Deprecated">
+
+    <!--
+      Ключевое право. Без него ActivityOptions.setLaunchDisplayId для чужого
+      приложения молча игнорируется и виртуальный дисплей остаётся чёрным —
+      ровно то, что мы видели раньше. Уровень signature|privileged.
+    -->
+    <uses-permission android:name="android.permission.ACTIVITY_EMBEDDING"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Позволяет держать окно чужого приложения внутри нашей карточки -->
+    <uses-permission android:name="android.permission.INTERNAL_SYSTEM_WINDOW"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Управление задачами: запуск на нужном дисплее, без дублей -->
+    <uses-permission android:name="android.permission.MANAGE_ACTIVITY_STACKS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.MANAGE_ACTIVITY_TASKS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.REAL_GET_TASKS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!--
+      Позволяет выставить force_resizable_activities — без этого Яндекс Карты
+      и YouTube рисуют интерфейс так, будто у них полный экран.
+    -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Виртуальный дисплей, видимый другим приложениям -->
+    <uses-permission android:name="android.permission.CAPTURE_VIDEO_OUTPUT"
+        tools:ignore="ProtectedPermissions" />
+</manifest>
