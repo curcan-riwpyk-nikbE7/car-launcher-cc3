@@ -10,6 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -38,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,41 @@ import com.example.carlauncher.data.rememberWeather
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/**
+ * Полоса статуса во всю ширину экрана.
+ *
+ * Лежит поверх всего и своей высоты не занимает — карточки от этого
+ * не становятся ниже. Градиент нужен потому, что под полосой оказывается
+ * картинка машины: на светлых её местах белые значки без затемнения
+ * пропадают. Сверху вниз он сходит на нет, чтобы не было видно границы.
+ *
+ * Часы сюда не выносим: у штатного CC3 они в боковой панели.
+ */
+@Composable
+fun TopStatusStrip(modifier: Modifier = Modifier, weatherKey: Int = 0) {
+    val h = dimens().statusBarHeight
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(h)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color.Black.copy(alpha = 0.34f),
+                        Color.Transparent
+                    )
+                )
+            )
+    ) {
+        TopStatusBar(
+            weatherKey = weatherKey,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 14.dp)
+        )
+    }
+}
 
 /** Верхняя строка: Wi-Fi, дата, микрофон, BT, погода, громкость. */
 @Composable

@@ -294,16 +294,9 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Дата, погода и значки — в правом верхнем углу карточки.
-                // Своей высоты не занимают, поэтому карточки стали выше
-                // почти на сотню пикселей.
-                TopStatusBar(
-                    weatherKey = weatherKey,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .height(dimens().statusBarHeight)
-                        .padding(horizontal = 14.dp)
-                )
+                // Строка статуса теперь рисуется одной полосой во всю ширину
+                // экрана (в самом низу файла, поверх раскладки), поэтому
+                // здесь её больше нет.
                 }
             }
 
@@ -518,6 +511,15 @@ fun HomeScreen(
             }
         }
         }
+
+        // Полоса статуса поверх всей раскладки, включая боковую панель:
+        // край экрана выглядит цельным, а не обрезанным по ширине панели.
+        // Порядок важен — она объявлена после раскладки, значит рисуется
+        // сверху и остаётся кликабельной (громкость, шторка).
+        TopStatusStrip(
+            weatherKey = weatherKey,
+            modifier = Modifier.align(Alignment.TopStart)
+        )
 
         SetupBanner(
             visible = !isDefaultLauncher && !bannerDismissed,
