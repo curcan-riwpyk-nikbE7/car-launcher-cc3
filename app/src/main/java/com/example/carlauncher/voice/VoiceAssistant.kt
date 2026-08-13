@@ -32,8 +32,12 @@ class VoiceAssistant(private val context: Context) {
     var reply by mutableStateOf("")
         private set
 
+    /**
+     * Экран погашен. Пишется и снаружи: гасить умеет и голосовая команда,
+     * и кнопка в шторке, а само гашение делает Activity — только у неё
+     * есть доступ к Window.
+     */
     var screenDimmed by mutableStateOf(false)
-        private set
 
     /** Русского голоса в системе нет — подсказываем один раз. */
     var ttsMissing by mutableStateOf(false)

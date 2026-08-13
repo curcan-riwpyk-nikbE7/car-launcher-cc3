@@ -5,8 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -61,7 +63,11 @@ import java.util.Locale
  * Часы сюда не выносим: у штатного CC3 они в боковой панели.
  */
 @Composable
-fun TopStatusStrip(modifier: Modifier = Modifier, weatherKey: Int = 0) {
+fun TopStatusStrip(
+    modifier: Modifier = Modifier,
+    weatherKey: Int = 0,
+    onOpenShade: (() -> Unit)? = null
+) {
     val h = dimens().statusBarHeight
     Box(
         modifier = modifier
@@ -78,6 +84,7 @@ fun TopStatusStrip(modifier: Modifier = Modifier, weatherKey: Int = 0) {
     ) {
         TopStatusBar(
             weatherKey = weatherKey,
+            onOpenShade = onOpenShade,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 14.dp)
@@ -86,8 +93,13 @@ fun TopStatusStrip(modifier: Modifier = Modifier, weatherKey: Int = 0) {
 }
 
 /** Верхняя строка: Wi-Fi, дата, микрофон, BT, погода, громкость. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TopStatusBar(modifier: Modifier = Modifier, weatherKey: Int = 0) {
+fun TopStatusBar(
+    modifier: Modifier = Modifier,
+    weatherKey: Int = 0,
+    onOpenShade: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
 
@@ -165,6 +177,10 @@ fun TopStatusBar(modifier: Modifier = Modifier, weatherKey: Int = 0) {
             Text(" $volume", color = TextPrimary, fontSize = 13.sp)
         }
 
+        // Открывает нашу шторку, а не системную: в своей лежат только
+        // те переключатели, что реально работают без прав прошивки.
+        // Долгое нажатие оставлено за системной — уведомления Android
+        // иначе стали бы недоступны.
         Icon(
             Icons.Rounded.ExpandMore, "Шторка",
             tint = TextPrimary,
@@ -172,7 +188,10 @@ fun TopStatusBar(modifier: Modifier = Modifier, weatherKey: Int = 0) {
                 .size(24.dp)
                 .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.07f))
-                .clickable { expandStatusBar(context) }
+                .combinedClickable(
+                    onClick = { onOpenShade?.invoke() ?: expandStatusBar(context) },
+                    onLongClick = { expandStatusBar(context) }
+                )
                 .padding(3.dp)
         )
     }

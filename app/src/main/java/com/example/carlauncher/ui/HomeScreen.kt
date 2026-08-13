@@ -69,7 +69,9 @@ fun HomeScreen(
      * Нажатие на орб-микрофон. По умолчанию зовём системный помощник —
      * так экран остаётся рабочим в превью и если наш движок не поднялся.
      */
-    onVoice: (() -> Unit)? = null
+    onVoice: (() -> Unit)? = null,
+    /** Гашение подсветки держит Activity: из Compose до Window не дотянуться. */
+    onScreenOff: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val spec = LocalThemeSpec.current
@@ -118,6 +120,7 @@ fun HomeScreen(
     var playerExpanded by remember { mutableStateOf(false) }
     var radioExpanded by remember { mutableStateOf(false) }
     var carExpanded by remember { mutableStateOf(false) }
+    var shadeOpen by remember { mutableStateOf(false) }
     val isNight by rememberIsNight(SettingsStore.nightMode.value, now)
 
     // Баннер «назначьте лаунчер». Проверяем при каждом появлении экрана
@@ -518,7 +521,27 @@ fun HomeScreen(
         // сверху и остаётся кликабельной (громкость, шторка).
         TopStatusStrip(
             weatherKey = weatherKey,
+            onOpenShade = { shadeOpen = true },
             modifier = Modifier.align(Alignment.TopStart)
+        )
+
+        // Узкая полоса захвата у верхнего края: тянуть вниз — шторка.
+        // Объявлена после строки статуса, но значки в ней остаются
+        // нажимаемыми, потому что здесь ловится только перетаскивание.
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .shadePullDown(d.statusBarHeight) { shadeOpen = true }
+        )
+
+        // Шторка объявлена после строки статуса, значит рисуется поверх
+        // неё и перехватывает нажатия — иначе кнопки под затемнением
+        // оставались бы кликабельными.
+        ControlShade(
+            visible = shadeOpen,
+            onDismiss = { shadeOpen = false },
+            onScreenOff = { onScreenOff?.invoke() },
+            weatherKey = weatherKey
         )
 
         SetupBanner(

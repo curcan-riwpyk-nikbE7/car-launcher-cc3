@@ -82,7 +82,8 @@ class MainActivity : ComponentActivity() {
                         // Орб на панели запускает наш помощник напрямую,
                         // не дожидаясь слова активации: за рулём при
                         // громкой музыке это единственный надёжный способ.
-                        onVoice = { assistant.listenNow() }
+                        onVoice = { assistant.listenNow() },
+                        onScreenOff = { dimScreen(true) }
                     )
 
                     VoiceOverlay(
@@ -94,7 +95,7 @@ class MainActivity : ComponentActivity() {
 
                     ScreenDimOverlay(
                         visible = assistant.screenDimmed,
-                        onWake = { assistant.wakeScreen() }
+                        onWake = { dimScreen(false) }
                     )
                 }
             }
@@ -168,6 +169,28 @@ class MainActivity : ComponentActivity() {
             runCatching {
                 com.example.carlauncher.data.ShortcutStore(this@MainActivity)
                     .seedDefaults(this@MainActivity, loaded.map { it.packageName })
+            }
+        }
+    }
+
+    /**
+     * Настоящее гашение экрана: яркость окна в ноль.
+     *
+     * Обычное приложение не может выключить дисплей — для этого нужны
+     * права прошивки. Зато яркость СВОЕГО окна менять разрешено всем,
+     * и на уровне драйвера это то же самое: подсветка гаснет физически,
+     * а не закрашивается чёрным поверх. Чёрный слой сверху всё равно
+     * нужен — на некоторых ГУ минимум яркости не нулевой.
+     *
+     * Флаг screenDimmed живёт в помощнике, чтобы голосовая команда
+     * «выключи экран» и кнопка в шторке гасили одно и то же.
+     */
+    private fun dimScreen(on: Boolean) {
+        assistant.screenDimmed = on
+        runCatching {
+            window.attributes = window.attributes.apply {
+                screenBrightness = if (on) 0f
+                else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
             }
         }
     }

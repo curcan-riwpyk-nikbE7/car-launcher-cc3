@@ -42,6 +42,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.carlauncher.data.SettingsStore
@@ -173,6 +174,39 @@ fun Modifier.launcherGestures(
             }
         )
     }
+}
+
+/**
+ * Свайп вниз от верхнего края открывает шторку.
+ *
+ * Полоса захвата узкая (высота строки статуса) и лежит поверх всего —
+ * иначе жест конфликтовал бы с регулировкой громкости, которая тоже
+ * вертикальная. У края экрана громкость крутить всё равно неудобно,
+ * так что потери никакой.
+ */
+@Composable
+fun Modifier.shadePullDown(height: Dp, onOpen: () -> Unit): Modifier {
+    val density = LocalDensity.current
+    val trigger = with(density) { 44.dp.toPx() }
+
+    return this
+        .fillMaxWidth()
+        .height(height)
+        .pointerInput(Unit) {
+            var dy = 0f
+            var fired = false
+            detectDragGestures(
+                onDragStart = { dy = 0f; fired = false },
+                onDragEnd = { dy = 0f }
+            ) { change, drag ->
+                dy += drag.y
+                if (!fired && dy > trigger) {
+                    fired = true
+                    onOpen()
+                }
+                change.consume()
+            }
+        }
 }
 
 /** Всплывающая подсказка по центру экрана: трек или шкала громкости. */
