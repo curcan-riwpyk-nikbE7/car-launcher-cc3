@@ -149,7 +149,21 @@ object AppRepository {
         "com.android.dialer", "com.google.android.dialer"
     )
 
+    /**
+     * YouTube стоит первым намеренно: в машине под «видео» почти всегда
+     * подразумевают именно его, а штатные плееры ГУ нужны реже.
+     * Раньше его в списке не было вовсе — кнопка «Открыть» молча
+     * не срабатывала, потому что находить было нечего.
+     *
+     * Вариантов сборки несколько: обычный, Vanced и ReVanced ставят
+     * свои имена пакетов, а на части китайских ГУ предустановлен
+     * облегчённый YouTube Go.
+     */
     val VIDEO = listOf(
+        "com.google.android.youtube",
+        "app.revanced.android.youtube",
+        "com.vanced.android.youtube",
+        "com.google.android.apps.youtube.mango",
         "com.hzbhd.video", "com.android.gallery3d", "com.tw.video", "com.syu.video",
         "org.videolan.vlc", "com.mxtech.videoplayer.ad"
     )
@@ -173,7 +187,7 @@ object AppRepository {
     val MUSIC_LABELS = listOf("Музыка", "Music", "Медиа", "Media")
     val PHONE_LABELS = listOf("Bluetooth", "BT телефон", "Телефон", "Phone", "Блютуз")
     val BT_MUSIC_LABELS = listOf("BT Музыка", "Bluetooth Music", "BT Music")
-    val VIDEO_LABELS = listOf("Видео", "Video", "Галерея", "Gallery")
+    val VIDEO_LABELS = listOf("YouTube", "Ютуб", "Видео", "Video", "Галерея", "Gallery")
     val CLIMATE_LABELS = listOf("AC", "Климат", "Climate", "Кондиционер", "Air")
     val CAR_INFO_LABELS = listOf("Car Info", "Car Setup", "Автомобиль", "Car", "Инфо")
     val DSP_LABELS = listOf("DSP", "Эквалайзер", "Equalizer", "EQ")

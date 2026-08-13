@@ -105,6 +105,16 @@ fun VideoCard(
         when {
             item == null -> EmptyVideoState(
                 onAdd = { showList = true },
+                onOpenApp = {
+                    // Настоящее приложение с аккаунтом и подписками.
+                    // Внутрь карточки его не пустить без прав прошивки,
+                    // но запустить поверх лаунчера можно всегда.
+                    com.example.carlauncher.data.AppRepository.launchFirstAvailable(
+                        context,
+                        com.example.carlauncher.data.AppRepository.VIDEO,
+                        errorText = "YouTube не установлен"
+                    )
+                },
                 onSwitchCard = onSwitchCard
             )
 
@@ -283,14 +293,25 @@ private fun YoutubePlayer(videoId: String, paused: Boolean, modifier: Modifier =
     AndroidView(factory = { webView }, modifier = modifier)
 }
 
-/** Пустая карточка: объясняет, что делать. */
+/**
+ * Пустая карточка: два равноправных пути.
+ *
+ * Открыть приложение — обычный запуск поверх лаунчера, со своим
+ * аккаунтом и подписками. Добавить ссылку — воспроизведение внутри
+ * карточки, но без аккаунта. Первое нужно чаще, поэтому оно основной
+ * кнопкой.
+ */
 @Composable
-private fun EmptyVideoState(onAdd: () -> Unit, onSwitchCard: () -> Unit) {
+private fun EmptyVideoState(
+    onAdd: () -> Unit,
+    onOpenApp: () -> Unit,
+    onSwitchCard: () -> Unit
+) {
     val s = LocalThemeSpec.current
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(30.dp),
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -298,34 +319,59 @@ private fun EmptyVideoState(onAdd: () -> Unit, onSwitchCard: () -> Unit) {
             Icons.Rounded.PlayArrow,
             contentDescription = null,
             tint = s.textDim,
-            modifier = Modifier.size(52.dp)
+            modifier = Modifier.size(44.dp)
         )
         Text(
-            text = "Список видео пуст",
+            text = "Видео",
             color = s.textPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = s.fontFamily,
-            modifier = Modifier.padding(top = 14.dp)
+            modifier = Modifier.padding(top = 10.dp)
         )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(top = 18.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(s.accent)
+                    .clickable(onClick = onOpenApp)
+                    .padding(horizontal = 22.dp, vertical = 13.dp)
+            ) {
+                Text(
+                    "Открыть YouTube",
+                    color = s.onAccent,
+                    fontSize = 16.sp,
+                    fontFamily = s.fontFamily
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.White.copy(alpha = 0.10f))
+                    .clickable(onClick = onAdd)
+                    .padding(horizontal = 22.dp, vertical = 13.dp)
+            ) {
+                Text(
+                    "Список ссылок",
+                    color = s.textPrimary,
+                    fontSize = 16.sp,
+                    fontFamily = s.fontFamily
+                )
+            }
+        }
+
         Text(
-            text = "Скопируйте ссылку в YouTube через «Поделиться» и вставьте здесь",
-            color = s.textSecondary,
-            fontSize = 14.sp,
+            text = "«Открыть» запускает приложение с вашим аккаунтом.\n«Список» проигрывает видео прямо здесь, но без аккаунта.",
+            color = s.textDim,
+            fontSize = 12.sp,
             fontFamily = s.fontFamily,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp, start = 40.dp, end = 40.dp)
+            modifier = Modifier.padding(top = 16.dp)
         )
-        Box(
-            modifier = Modifier
-                .padding(top = 22.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(s.accent)
-                .clickable(onClick = onAdd)
-                .padding(horizontal = 26.dp, vertical = 12.dp)
-        ) {
-            Text("Добавить видео", color = s.onAccent, fontSize = 16.sp, fontFamily = s.fontFamily)
-        }
     }
 }
 
