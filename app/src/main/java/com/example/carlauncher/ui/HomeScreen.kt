@@ -148,10 +148,6 @@ fun HomeScreen(
     // Список приложений обновляется сам при установке/удалении
     PackageChangeEffect { revision++ }
     var showSpeedChoice by remember { mutableStateOf(false) }
-    var showWidgetPicker by remember { mutableStateOf(false) }
-    // Идентификатор виджета храним в тех же настройках, что и остальное:
-    // после перезапуска карточка должна восстановиться сама.
-    var widgetId by remember { mutableIntStateOf(store.getInt(ShortcutStore.KEY_SPEED_WIDGET, -1)) }
     var pendingMode by remember { mutableStateOf("embed") }
     // Приложение, встроенное в карточку прямо сейчас
     var embedFailed by remember { mutableStateOf(false) }
@@ -282,38 +278,6 @@ fun HomeScreen(
                 // Box нужен, чтобы значки легли на картинку, а не отняли
                 // высоту у карточки.
                 Box(modifier = Modifier.weight(1.35f).fillMaxHeight()) {
-                if (SettingsStore.speedMode.value == "widget" && widgetId >= 0) {
-                    Box(Modifier.fillMaxSize()) {
-                        WidgetView(widgetId, Modifier.fillMaxSize())
-                        // Кубик поверх виджета: иначе из режима виджета
-                        // не выйти — сам виджет забирает все нажатия.
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(14.dp)
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.45f))
-                                .clickable { showSpeedChoice = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                LauncherIcons.Cube,
-                                contentDescription = "Что показывать в карточке",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                } else if (SettingsStore.speedMode.value == "video") {
-                    VideoCard(
-                        speedKmh = speedKmh,
-                        blockOnDrive = SettingsStore.videoBlockOnDrive.value,
-                        // Возврат к машине тем же кубиком, что и уход
-                        onSwitchCard = { SettingsStore.setSpeedMode("embed") },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else
                 CarCard(
                     speedKmh = speedKmh,
                     showSpeed = SettingsStore.showSpeed.value,
@@ -649,16 +613,6 @@ fun HomeScreen(
             freeformAvailable = FreeformLauncher.isAvailable(context),
             currentArea = SettingsStore.speedArea.value,
             onAreaChange = { SettingsStore.setSpeedArea(it) },
-            onPickVideo = {
-                // Приложение выбирать не надо — список видео свой,
-                // поэтому диалог просто закрывается.
-                showSpeedChoice = false
-                SettingsStore.setSpeedMode("video")
-            },
-            onPickWidget = {
-                showSpeedChoice = false
-                showWidgetPicker = true
-            },
             onPickEmbed = {
                 showSpeedChoice = false
                 pendingMode = "embed"
@@ -694,33 +648,6 @@ fun HomeScreen(
                 revision++
             },
             onDismiss = { showSpeedChoice = false }
-        )
-    }
-
-    if (showWidgetPicker) {
-        WidgetPickerDialog(
-            onPick = { info ->
-                showWidgetPicker = false
-                // Старый виджет освобождаем: система выдаёт их поштучно
-                // и не любит, когда идентификаторы висят без дела.
-                if (widgetId >= 0) WidgetHost.release(context, widgetId)
-                val (id, allowed) = WidgetHost.allocate(context, info)
-                if (allowed) {
-                    widgetId = id
-                    store.setInt(ShortcutStore.KEY_SPEED_WIDGET, id)
-                    SettingsStore.setSpeedMode("widget")
-                } else {
-                    // Некоторые виджеты требуют явного согласия. Диалог
-                    // системный, показать его может только Activity.
-                    WidgetHost.release(context, id)
-                    android.widget.Toast.makeText(
-                        context,
-                        "Этот виджет требует разрешения. Выберите другой",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                }
-            },
-            onDismiss = { showWidgetPicker = false }
         )
     }
 

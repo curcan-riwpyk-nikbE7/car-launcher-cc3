@@ -26,7 +26,6 @@ object SettingsStore {
     private const val K_BT_AUTOPLAY = "set_bt_autoplay"
     private const val K_VOICE_WAKE = "set_voice_wake"
     private const val K_PREWARM = "set_prewarm_window"
-    private const val K_VIDEO_BLOCK = "set_video_block_drive"
     private const val K_SPEED_MODE = "set_speed_mode"
     private const val K_SPEED_AREA = "set_speed_area"
 
@@ -80,15 +79,9 @@ object SettingsStore {
      */
     val prewarmWindow: MutableState<Boolean> = mutableStateOf(true)
 
-    /** Режим карточки спидометра: video | embed | freeform | split | full. */
+    /** Режим карточки спидометра: embed | freeform | split | full. */
     val speedMode: MutableState<String> = mutableStateOf("embed")
 
-    /**
-     * Прятать картинку видео на ходу, звук при этом продолжает играть.
-     * По умолчанию включено: смотреть за рулём опасно, и на штатных ГУ
-     * такая блокировка есть всегда.
-     */
-    val videoBlockOnDrive: MutableState<Boolean> = mutableStateOf(true)
 
     /** Область плавающего окна: Card | RightColumn | RightHalf. */
     val speedArea: MutableState<String> = mutableStateOf("RightColumn")
@@ -109,7 +102,6 @@ object SettingsStore {
         btAutoPlay.value = p.getBoolean(K_BT_AUTOPLAY, false)
         voiceWake.value = p.getBoolean(K_VOICE_WAKE, false)
         prewarmWindow.value = p.getBoolean(K_PREWARM, true)
-        videoBlockOnDrive.value = p.getBoolean(K_VIDEO_BLOCK, true)
         // Умный дефолт: встраивание предлагаем только там, где оно реально
         // заработает (системная сборка на прошивке с ключом AOSP).
         // На обычной сборке сразу freeform — иначе пользователь при первом
@@ -132,7 +124,6 @@ object SettingsStore {
     fun setBtAutoPlay(v: Boolean) { btAutoPlay.value = v; prefs?.edit()?.putBoolean(K_BT_AUTOPLAY, v)?.apply() }
     fun setVoiceWake(v: Boolean) { voiceWake.value = v; prefs?.edit()?.putBoolean(K_VOICE_WAKE, v)?.apply() }
     fun setPrewarm(v: Boolean) { prewarmWindow.value = v; prefs?.edit()?.putBoolean(K_PREWARM, v)?.apply() }
-    fun setVideoBlockOnDrive(v: Boolean) { videoBlockOnDrive.value = v; prefs?.edit()?.putBoolean(K_VIDEO_BLOCK, v)?.apply() }
     fun setSpeedArea(v: String) { speedArea.value = v; prefs?.edit()?.putString(K_SPEED_AREA, v)?.apply() }
     fun setSpeedMode(v: String) { speedMode.value = v; prefs?.edit()?.putString(K_SPEED_MODE, v)?.apply() }
     fun setRadioName(v: String) { radioName.value = v; prefs?.edit()?.putString(K_RADIO_NAME, v)?.apply() }

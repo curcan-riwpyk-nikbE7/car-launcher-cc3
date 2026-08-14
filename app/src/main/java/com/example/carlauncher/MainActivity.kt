@@ -61,7 +61,6 @@ class MainActivity : ComponentActivity() {
         SettingsStore.init(this)
         TripComputer.init(this)
         WallpaperStore.init(this)
-        com.example.carlauncher.data.VideoStore.init(this)
         // В системной сборке разово включаем force_resizable_activities:
         // без него Карты и YouTube внутри карточки верстаются как на
         // полном экране и половина интерфейса уезжает за край.
