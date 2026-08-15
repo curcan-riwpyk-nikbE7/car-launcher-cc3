@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.carlauncher"
         minSdk = 23          // Android 6.0 — типовые китайские ГУ
         targetSdk = 30       // намеренно 30: на targetSdk 31+ старые ГУ ломают часть intent'ов
-        versionCode = 11
-        versionName = "2.0"
+        versionCode = 12
+        versionName = "2.1"
 
         ndk {
             // Головные устройства все на ARM. Библиотеки Vosk для x86
@@ -54,6 +54,19 @@ android {
         create("system") {
             dimension = "privilege"
             signingConfig = signingConfigs.getByName("platform")
+        }
+        // Прошивка ГУ собрана с тегом test-keys (видно в AIDA64:
+        // «alps/full_k62v1_64_bsp/...:user/test-keys»). Это НЕ ключ platform:
+        // в AOSP их четыре разных, и подпись должна совпасть ровно.
+        // Раньше мы подписывали platform — установка системной версии
+        // не проходила именно поэтому.
+        //
+        // Здесь sharedUserId не запрашивается: если система не пустит
+        // в android.uid.system, установка сорвётся целиком. Права
+        // signature-уровня приходят и от одной совпавшей подписи.
+        create("aosp") {
+            dimension = "privilege"
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

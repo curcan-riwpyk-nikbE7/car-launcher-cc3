@@ -19,6 +19,27 @@ import android.content.Context
  */
 object BtDevice {
 
+    /**
+     * Заряд подключённого телефона в процентах, -1 если недоступен.
+     *
+     * Уровень передаётся по HFP в служебной команде AT+IPHONEACCEV
+     * (её шлют и айфоны, и андроиды), система кладёт его в скрытый
+     * getBatteryLevel. Публичного API нет вовсе, поэтому только рефлексия.
+     */
+    fun batteryLevel(context: Context): Int = runCatching {
+        val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)
+            ?.adapter ?: @Suppress("DEPRECATION") BluetoothAdapter.getDefaultAdapter()
+        if (adapter?.isEnabled != true) return -1
+
+        val dev = adapter.bondedDevices?.firstOrNull { d ->
+            runCatching { d.javaClass.getMethod("isConnected").invoke(d) as? Boolean == true }
+                .getOrDefault(false)
+        } ?: return -1
+
+        val m = dev.javaClass.getMethod("getBatteryLevel")
+        (m.invoke(dev) as? Int) ?: -1
+    }.getOrDefault(-1)
+
     fun connectedName(context: Context): String? = runCatching {
         val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)
             ?.adapter ?: @Suppress("DEPRECATION") BluetoothAdapter.getDefaultAdapter()

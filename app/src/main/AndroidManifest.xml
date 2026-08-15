@@ -12,8 +12,16 @@
     <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
-    <!-- Кнопка Bluetooth в шторке. На Android 10 переключение ещё разрешено -->
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!--
+      Android 12+ требует эти два вместо старых. Без BLUETOOTH_CONNECT
+      система не отдаёт даже имя подключённого телефона — карточка плеера
+      показывала бы просто «Bluetooth».
+      maxSdkVersion у старых не ставим: на этом ГУ прошивка с test-keys
+      и уважает оба набора.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <!-- Ползунок яркости. Выдаётся вручную на системном экране, не диалогом -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
         tools:ignore="ProtectedPermissions" />

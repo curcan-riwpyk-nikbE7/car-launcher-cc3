@@ -39,11 +39,25 @@ object QuickControls {
 
     fun toggleBluetooth(context: Context): Boolean {
         val a = adapter(context) ?: return false
-        // TIRAMISU = Android 13, с неё программное переключение запрещено
-        if (Build.VERSION.SDK_INT >= 33) return false
-        return runCatching {
+
+        // На Android 13 enable()/disable() объявлены недоступными для
+        // обычных приложений. Но на этом ГУ прошивка собрана с test-keys
+        // и раздаёт права свободнее стока, поэтому сначала пробуем —
+        // и только если система откажет, уводим в настройки.
+        //
+        // Раньше здесь стоял безусловный отказ по версии, и кнопка
+        // никогда не срабатывала, хотя железо позволяло.
+        val direct = runCatching {
             @Suppress("DEPRECATION")
             if (a.isEnabled) a.disable() else a.enable()
+        }.getOrDefault(false)
+        if (direct) return true
+
+        // Второй заход — через скрытый метод адаптера. Часть китайских
+        // прошивок оставляет его открытым, когда публичный уже закрыт.
+        return runCatching {
+            val m = a.javaClass.getMethod(if (a.isEnabled) "disable" else "enable")
+            m.invoke(a) as? Boolean == true
         }.getOrDefault(false)
     }
 

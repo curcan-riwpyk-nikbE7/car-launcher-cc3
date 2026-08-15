@@ -6,6 +6,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -142,7 +148,17 @@ fun TopStatusBar(
         )
 
         Icon(Icons.Rounded.Mic, "Голос", tint = TextPrimary, modifier = Modifier.size(18.dp))
-        Icon(Icons.Rounded.Bluetooth, "Bluetooth", tint = Cyan, modifier = Modifier.size(18.dp))
+
+        // Bluetooth и батарея стоят вплотную одной группой — так у штатного
+        // лаунчера. Между ними меньше зазор, чем между остальными значками,
+        // и читаются они как одно целое «связь с телефоном».
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Icon(Icons.Rounded.Bluetooth, "Bluetooth", tint = TextPrimary, modifier = Modifier.size(18.dp))
+            PhoneBattery()
+        }
 
         // Реальная погода. Если сети или геолокации нет — блок скрыт.
         val weather by rememberWeather(weatherKey)
@@ -163,37 +179,123 @@ fun TopStatusBar(
             }
         }
 
+        // Громкость и стрелка шторки — одна серая пилюля, как в оригинале.
+        // Раньше это были два отдельных кружка с зазором: выглядело
+        // разболтанно, а у штатного они слиты в единый блок, где стрелка
+        // сидит в светлом кружке внутри пилюли.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.07f))
-                .clickable {
-                    runCatching { am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI) }
-                }
-                .padding(horizontal = 9.dp, vertical = 4.dp)
+                .background(Color(0xFF3A3E45))
+                .padding(start = 11.dp, end = 3.dp, top = 3.dp, bottom = 3.dp)
         ) {
-            Icon(Icons.AutoMirrored.Rounded.VolumeUp, "Громкость", tint = TextPrimary, modifier = Modifier.size(15.dp))
-            Text(" $volume", color = TextPrimary, fontSize = 13.sp)
-        }
+            Icon(
+                Icons.AutoMirrored.Rounded.VolumeUp, "Громкость",
+                tint = TextPrimary,
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable {
+                        runCatching {
+                            am.adjustStreamVolume(
+                                AudioManager.STREAM_MUSIC,
+                                AudioManager.ADJUST_SAME,
+                                AudioManager.FLAG_SHOW_UI
+                            )
+                        }
+                    }
+            )
+            Text(
+                text = "$volume",
+                color = TextPrimary,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(start = 6.dp, end = 7.dp)
+            )
 
-        // Открывает нашу шторку, а не системную: в своей лежат только
-        // те переключатели, что реально работают без прав прошивки.
-        // Долгое нажатие оставлено за системной — уведомления Android
-        // иначе стали бы недоступны.
-        Icon(
-            Icons.Rounded.ExpandMore, "Шторка",
-            tint = TextPrimary,
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.07f))
-                .combinedClickable(
-                    onClick = { onOpenShade?.invoke() ?: expandStatusBar(context) },
-                    onLongClick = { expandStatusBar(context) }
+            // Своя шторка по короткому нажатию, системная — по долгому:
+            // уведомления Android иначе стали бы недоступны.
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF4F4F5))
+                    .combinedClickable(
+                        onClick = { onOpenShade?.invoke() ?: expandStatusBar(context) },
+                        onLongClick = { expandStatusBar(context) }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.ExpandMore, "Шторка",
+                    tint = Color(0xFF23262B),
+                    modifier = Modifier.size(17.dp)
                 )
-                .padding(3.dp)
-        )
+            }
+        }
+    }
+}
+
+/**
+ * Заряд подключённого телефона.
+ *
+ * Уровень приходит по Bluetooth HFP и лежит в скрытом методе
+ * getBatteryLevel — публичного способа его узнать нет. Метод есть
+ * во всех версиях с Android 5, но если прошивка его закрыла или
+ * телефон уровень не передаёт, значок просто не рисуем: пустая
+ * батарейка вводила бы в заблуждение.
+ */
+@Composable
+private fun PhoneBattery() {
+    val context = LocalContext.current
+    var level by remember { mutableStateOf(-1) }
+
+    // Раз в минуту: чаще незачем, а держать подписку на профиль HFP
+    // ради значка — лишний фоновый сервис.
+    LaunchedEffect(Unit) {
+        while (true) {
+            level = com.example.carlauncher.data.BtDevice.batteryLevel(context)
+            kotlinx.coroutines.delay(60_000)
+        }
+    }
+
+    if (level !in 0..100) return
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Canvas(modifier = Modifier.size(width = 11.dp, height = 19.dp)) {
+            val capW = size.width * 0.42f
+            val capH = size.height * 0.09f
+            val bodyTop = capH
+            val stroke = size.width * 0.11f
+
+            // Носик сверху
+            drawRoundRect(
+                color = Color(0xFFE8ECF8),
+                topLeft = Offset((size.width - capW) / 2f, 0f),
+                size = Size(capW, capH * 1.6f),
+                cornerRadius = CornerRadius(stroke)
+            )
+            // Корпус
+            drawRoundRect(
+                color = Color(0xFFE8ECF8),
+                topLeft = Offset(0f, bodyTop),
+                size = Size(size.width, size.height - bodyTop),
+                cornerRadius = CornerRadius(size.width * 0.22f),
+                style = Stroke(width = stroke)
+            )
+            // Заливка снизу вверх — зелёная, как в оригинале
+            val innerPad = stroke * 1.6f
+            val innerTop = bodyTop + innerPad
+            val innerH = size.height - innerTop - innerPad
+            val fillH = innerH * (level / 100f)
+            if (fillH > 0f) {
+                drawRoundRect(
+                    color = if (level <= 15) Color(0xFFE05B4B) else Color(0xFF14A32E),
+                    topLeft = Offset(innerPad, innerTop + (innerH - fillH)),
+                    size = Size(size.width - innerPad * 2, fillH),
+                    cornerRadius = CornerRadius(stroke * 0.7f)
+                )
+            }
+        }
     }
 }
 
