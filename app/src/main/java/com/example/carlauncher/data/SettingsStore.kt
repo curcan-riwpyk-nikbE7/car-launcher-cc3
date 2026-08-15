@@ -38,7 +38,7 @@ object SettingsStore {
     val swipeThreshold: MutableState<Float> = mutableFloatStateOf(80f)
 
     /** Сколько dp нужно протянуть на один шаг громкости. */
-    val volumeStep: MutableState<Float> = mutableFloatStateOf(40f)
+    val volumeStep: MutableState<Float> = mutableFloatStateOf(22f)
 
     /** Вибро-отклик на жестах и долгих нажатиях. */
     val hapticEnabled: MutableState<Boolean> = mutableStateOf(true)
@@ -95,7 +95,7 @@ object SettingsStore {
         prefs = p
         gesturesEnabled.value = p.getBoolean(K_GESTURES, true)
         swipeThreshold.value = p.getFloat(K_SWIPE, 80f)
-        volumeStep.value = p.getFloat(K_VOLUME_STEP, 40f)
+        volumeStep.value = p.getFloat(K_VOLUME_STEP, 22f)
         hapticEnabled.value = p.getBoolean(K_HAPTIC, true)
         keepScreenOn.value = p.getBoolean(K_KEEP_SCREEN, true)
         immersive.value = p.getBoolean(K_IMMERSIVE, true)

@@ -58,6 +58,9 @@ object TripComputer {
                 if (step < 1000f) {
                     distanceM.value += step
                     movingMs.value += (timeMs - lastAt).coerceIn(0L, 10_000L)
+                    // Тот же метр идёт и в общий пробег — из него
+                    // считается остаток до ТО
+                    Maintenance.addDistance(step)
                 }
             }
             if (speedKmh > maxKmh.value) maxKmh.value = speedKmh

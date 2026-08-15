@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
         ThemeStore.init(this)
         SettingsStore.init(this)
         TripComputer.init(this)
+        com.example.carlauncher.data.Maintenance.init(this)
         WallpaperStore.init(this)
         // В системной сборке разово включаем force_resizable_activities:
         // без него Карты и YouTube внутри карточки верстаются как на
@@ -123,6 +124,38 @@ class MainActivity : ComponentActivity() {
         reloadApps()
         // Микрофон отдаём другим приложениям, пока лаунчер в фоне
         runCatching { assistant.resume() }
+        // Яркость по времени суток — на случай, если магнитолу завели
+        // вечером, а последний раз пользовались днём
+        runCatching { com.example.carlauncher.data.AutoBrightness.apply(this) }
+    }
+
+    /**
+     * Кнопки на руле.
+     *
+     * Руль подключён через ADC-модуль, прошивка превращает нажатия
+     * в обычные события клавиш. Ловим их здесь и делаем то, что назначил
+     * пользователь.
+     *
+     * Часть кнопок прошивка обрабатывает сама и до приложений не доводит —
+     * обычно громкость и приём вызова. Такие сюда просто не придут,
+     * и повлиять на это без прав прошивки нельзя.
+     */
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        // Повтор при удержании пропускаем, кроме громкости: её как раз
+        // удобно крутить длинным нажатием
+        val isRepeat = (event?.repeatCount ?: 0) > 0
+        val action = com.example.carlauncher.data.SteeringKeys.actionFor(this, keyCode)
+        val allowRepeat = action == com.example.carlauncher.data.SteeringKeys.Action.VolumeUp ||
+            action == com.example.carlauncher.data.SteeringKeys.Action.VolumeDown
+        if (isRepeat && !allowRepeat) return true
+
+        val handled = com.example.carlauncher.data.SteeringKeys.handle(
+            context = this,
+            keyCode = keyCode,
+            onVoice = { runCatching { assistant.listenNow() } },
+            onHome = { /* мы и есть главный экран */ }
+        )
+        return if (handled) true else super.onKeyDown(keyCode, event)
     }
 
     override fun onPause() {

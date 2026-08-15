@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -197,11 +198,20 @@ fun PhoneMediaCard(
                         tint = Color(0xFF4FC3F7),
                         modifier = Modifier.size(14.dp)
                     )
+                    // Имя телефона вместо версии протокола: «Bluetooth 5.1»
+                    // не говорит ничего, а имя устройства сразу показывает,
+                    // чей телефон сейчас подключён.
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    val deviceName = remember {
+                        com.example.carlauncher.data.BtDevice.connectedName(ctx)
+                    }
                     Text(
-                        text = "Bluetooth 5.1",
+                        text = deviceName ?: "Bluetooth",
                         color = Color.White.copy(alpha = 0.9f),
                         fontSize = 12.sp,
                         fontFamily = s.fontFamily,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         modifier = Modifier.padding(start = 5.dp)
                     )
                 }

@@ -213,27 +213,65 @@ object MediaControl {
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     /**
+     * Какой поток реально звучит.
+     *
+     * На магнитоле их несколько: музыка, звонок, системный. При активном
+     * BT-звонке крутить STREAM_MUSIC бесполезно — слышно не станет.
+     * Определяем по режиму аудиосервиса.
+     */
+    private fun activeStream(context: Context): Int = runCatching {
+        val am = audio(context)
+        when (am.mode) {
+            AudioManager.MODE_IN_CALL, AudioManager.MODE_IN_COMMUNICATION ->
+                AudioManager.STREAM_VOICE_CALL
+            else -> AudioManager.STREAM_MUSIC
+        }
+    }.getOrDefault(AudioManager.STREAM_MUSIC)
+
+    /**
      * Меняет громкость на один шаг.
-     * Свой UI мы рисуем сами, поэтому системную шторку не дёргаем (FLAG 0).
+     *
+     * Раньше звали только adjustStreamVolume и результат не проверяли.
+     * На китайских ГУ вендорский аудиосервис такой вызов часто глотает
+     * молча: исключения нет, но и громкость не меняется — со стороны
+     * выглядит как «жесты не работают».
+     *
+     * Теперь после вызова сверяем уровень и, если он не сдвинулся,
+     * выставляем нужное значение напрямую через setStreamVolume.
+     *
      * @return новый уровень в диапазоне 0..1
      */
     fun stepVolume(context: Context, up: Boolean): Float {
         val am = audio(context)
+        val stream = activeStream(context)
+        val max = runCatching { am.getStreamMaxVolume(stream) }.getOrDefault(15).coerceAtLeast(1)
+        val before = runCatching { am.getStreamVolume(stream) }.getOrDefault(0)
+
         runCatching {
             am.adjustStreamVolume(
-                AudioManager.STREAM_MUSIC,
+                stream,
                 if (up) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
                 0
             )
         }
-        return volumeLevel(context)
+
+        val after = runCatching { am.getStreamVolume(stream) }.getOrDefault(before)
+        if (after == before) {
+            // Шаг не прошёл — ставим значение сами.
+            val target = (before + if (up) 1 else -1).coerceIn(0, max)
+            if (target != before) {
+                runCatching { am.setStreamVolume(stream, target, 0) }
+            }
+        }
+        return volumeLevel(context, stream)
     }
 
-    /** Текущая громкость медиа-потока в диапазоне 0..1. */
-    fun volumeLevel(context: Context): Float = runCatching {
+    /** Текущая громкость в диапазоне 0..1. По умолчанию — активного потока. */
+    fun volumeLevel(context: Context, stream: Int = -1): Float = runCatching {
         val am = audio(context)
-        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-        am.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max
+        val s = if (stream >= 0) stream else activeStream(context)
+        val max = am.getStreamMaxVolume(s).coerceAtLeast(1)
+        am.getStreamVolume(s).toFloat() / max
     }.getOrDefault(0f)
 }
 
