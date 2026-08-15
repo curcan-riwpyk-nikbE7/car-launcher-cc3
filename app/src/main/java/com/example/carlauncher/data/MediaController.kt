@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.media.AudioManager
 import android.media.MediaMetadata
+import android.media.session.MediaController.TransportControls
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Build
@@ -125,8 +126,10 @@ object MediaControl {
     }
 
     /**
-     * Управление через медиа-клавиши. Работает без разрешений
-     * и понимается любым плеером, включая штатные приложения магнитолы.
+     * Управление через медиа-клавиши. Работает без разрешений,
+     * но это лишь имитация нажатия кнопки на гарнитуре: система сама
+     * решает, кому её отдать. Bluetooth-стек на китайских ГУ такие
+     * события часто игнорирует — поэтому это запасной путь, а не основной.
      */
     private fun sendKey(context: Context, keyCode: Int) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -137,9 +140,53 @@ object MediaControl {
         }
     }
 
-    fun playPause(context: Context) = sendKey(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-    fun next(context: Context) = sendKey(context, KeyEvent.KEYCODE_MEDIA_NEXT)
-    fun previous(context: Context) = sendKey(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+    /**
+     * Команда прямо в активную сессию.
+     *
+     * Именно так листается музыка с телефона: транспорт сессии уходит
+     * в BT-стек командой AVRCP, минуя раздачу медиа-клавиш. Раньше мы
+     * слали только клавиши, и по Bluetooth они пропадали в никуда —
+     * кнопки и жесты выглядели сломанными.
+     *
+     * @return false если сессии нет и надо падать на клавиши
+     */
+    private fun withSession(context: Context, action: (TransportControls) -> Unit): Boolean {
+        // Сессию перечитываем каждый раз: телефон мог переподключиться,
+        // и старая ссылка указывает на уже мёртвый контроллер.
+        val ctrl = runCatching {
+            if (!hasNotificationAccess(context)) return false
+            val msm = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
+            val component = ComponentName(context, MediaNotificationListener::class.java)
+            val sessions = msm.getActiveSessions(component)
+            sessions.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                ?: sessions.firstOrNull()
+        }.getOrNull() ?: return false
+
+        activeSession = ctrl
+        return runCatching { action(ctrl.transportControls); true }.getOrDefault(false)
+    }
+
+    fun playPause(context: Context) {
+        val done = withSession(context) { tc ->
+            // Отдельные play и pause вместо одной кнопки: часть
+            // BT-стеков не реализует переключатель, только явные команды.
+            if (activeSession?.playbackState?.state == PlaybackState.STATE_PLAYING) tc.pause()
+            else tc.play()
+        }
+        if (!done) sendKey(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+    }
+
+    fun next(context: Context) {
+        if (!withSession(context) { it.skipToNext() }) {
+            sendKey(context, KeyEvent.KEYCODE_MEDIA_NEXT)
+        }
+    }
+
+    fun previous(context: Context) {
+        if (!withSession(context) { it.skipToPrevious() }) {
+            sendKey(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+        }
+    }
 
     /**
      * Перемотка. Работает только если плеер отдал сессию —

@@ -6,6 +6,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -119,37 +122,50 @@ fun Modifier.launcherGestures(
     return this.pointerInput(enabled, swipeDp, volumeDp) {
         if (!enabled) return@pointerInput
 
-        var totalX = 0f
-        var totalY = 0f
-        var axis = 0            // 0 — не решено, 1 — горизонталь, 2 — вертикаль
-        var volumeAccum = 0f
-        var fired = false       // чтобы один свайп не сработал дважды
+        // Ловим касания в фазе Initial — до того, как их разберут
+        // карточки и кнопки внутри. Раньше стоял detectDragGestures,
+        // который работает в фазе Main: дочерние элементы забирали
+        // событие первыми, и свайпы по большей части экрана не проходили.
+        //
+        // Пока жест не опознан, событие не потребляем — обычные нажатия
+        // на карточки работают как прежде.
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
 
-        detectDragGestures(
-            onDragStart = {
-                totalX = 0f; totalY = 0f; axis = 0; volumeAccum = 0f; fired = false
-            },
-            onDragCancel = { axis = 0 },
-            onDragEnd = {
-                if (axis == 1 && !fired) {
-                    when {
-                        totalX <= -swipeThreshold -> {
-                            if (hapticOn) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onNextTrack()
-                        }
-                        totalX >= swipeThreshold -> {
-                            if (hapticOn) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onPrevTrack()
+            var totalX = 0f
+            var totalY = 0f
+            var axis = 0            // 0 — не решено, 1 — горизонталь, 2 — вертикаль
+            var volumeAccum = 0f
+            var pointerId = down.id
+
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val change = event.changes.firstOrNull { it.id == pointerId }
+                    ?: event.changes.firstOrNull()?.also { pointerId = it.id }
+                    ?: break
+
+                if (!change.pressed) {
+                    // Палец отпущен — решаем, был ли это свайп по треку
+                    if (axis == 1) {
+                        when {
+                            totalX <= -swipeThreshold -> {
+                                if (hapticOn) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onNextTrack()
+                            }
+                            totalX >= swipeThreshold -> {
+                                if (hapticOn) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onPrevTrack()
+                            }
                         }
                     }
+                    break
                 }
-                axis = 0
-            },
-            onDrag = { change, amount ->
-                totalX += amount.x
-                totalY += amount.y
 
-                // Определяем ось один раз: доминирующее направление с запасом 1.3x
+                val delta = change.position - change.previousPosition
+                totalX += delta.x
+                totalY += delta.y
+
+                // Ось определяем один раз: доминирующее направление с запасом 1.3x
                 if (axis == 0) {
                     val ax = abs(totalX)
                     val ay = abs(totalY)
@@ -158,8 +174,8 @@ fun Modifier.launcherGestures(
                 }
 
                 if (axis == 2) {
-                    volumeAccum += amount.y
-                    // Вверх = громче: у экрана ось Y растёт вниз, поэтому знак минус.
+                    volumeAccum += delta.y
+                    // Вверх = громче: у экрана ось Y растёт вниз, отсюда знак
                     while (volumeAccum <= -volumeStep) {
                         onVolumeStep(true); volumeAccum += volumeStep
                     }
@@ -168,11 +184,11 @@ fun Modifier.launcherGestures(
                     }
                 }
 
-                // Забираем событие себе только когда жест уже распознан,
-                // иначе сломаются обычные тапы по карточкам.
+                // Забираем событие себе только после распознавания жеста,
+                // чтобы карточка под пальцем не приняла его за нажатие.
                 if (axis != 0) change.consume()
             }
-        )
+        }
     }
 }
 
