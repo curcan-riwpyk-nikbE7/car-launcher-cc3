@@ -61,6 +61,9 @@ class MainActivity : ComponentActivity() {
         SettingsStore.init(this)
         TripComputer.init(this)
         com.example.carlauncher.data.Maintenance.init(this)
+        // Тихий старт: вечером слушал громко — утром завёл и получил
+        // это же в лицо. Ограничиваем только превышение потолка.
+        runCatching { com.example.carlauncher.data.AudioProfiles.applySoftStart(this) }
         WallpaperStore.init(this)
         // В системной сборке разово включаем force_resizable_activities:
         // без него Карты и YouTube внутри карточки верстаются как на

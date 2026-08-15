@@ -128,6 +128,7 @@ fun HomeScreen(
     var playerExpanded by remember { mutableStateOf(false) }
     var radioExpanded by remember { mutableStateOf(false) }
     var carExpanded by remember { mutableStateOf(false) }
+    var carInfoOpen by remember { mutableStateOf(false) }
     var shadeOpen by remember { mutableStateOf(false) }
     val isNight by rememberIsNight(SettingsStore.nightMode.value, now)
 
@@ -595,8 +596,16 @@ fun HomeScreen(
             visible = carExpanded,
             speedKmh = speedKmh,
             onResetTrip = { TripComputer.reset(); revision++ },
+            onOpenCarInfo = { carExpanded = false; carInfoOpen = true },
             onClose = { carExpanded = false }
         )
+
+        // Пробег, ТО и журнал поездок. Отдельным экраном, а не внутри
+        // развёрнутой карточки: там уже тесно, а списку поездок нужна
+        // вся высота.
+        if (carInfoOpen) {
+            CarInfoScreen(onClose = { carInfoOpen = false })
+        }
 
         // Ночное затемнение — поверх интерфейса, но под подсказками жестов
         NightDim(isNight)

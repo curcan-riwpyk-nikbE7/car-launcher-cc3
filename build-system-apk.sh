@@ -28,9 +28,9 @@ $BT/apksigner sign \
   --key "$KEYS/platform.pk8" \
   --cert "$KEYS/platform.x509.pem" \
   --v1-signing-enabled true --v2-signing-enabled true \
-  --out CarLauncher-SYSTEM.apk /tmp/aligned.apk
+  --out KINGSAID-SYSTEM.apk /tmp/aligned.apk
 
 echo "==> Проверка"
-$BT/apksigner verify --print-certs CarLauncher-SYSTEM.apk | grep -E "SHA-256 digest|DN"
+$BT/apksigner verify --print-certs KINGSAID-SYSTEM.apk | grep -E "SHA-256 digest|DN"
 
-echo "Готово: CarLauncher-SYSTEM.apk"
+echo "Готово: KINGSAID-SYSTEM.apk"

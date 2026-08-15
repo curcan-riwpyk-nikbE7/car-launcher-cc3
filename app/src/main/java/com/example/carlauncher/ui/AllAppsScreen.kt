@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -157,16 +159,36 @@ fun AllAppsScreen(
                         title = stringResource(R.string.nothing_found),
                         subtitle = "По запросу «${query.trim()}» совпадений нет"
                     )
-                    else -> LazyVerticalGrid(
-                        // Строго три колонки, как у штатного меню CC3.
-                        // Резиновая сетка на 1280 давала 10-11 колонок —
-                        // иконки выходили мелкие и лепились друг к другу.
-                        columns = GridCells.Fixed(3),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(filtered, key = { it.packageName + it.activityName }) { app ->
+                    else -> {
+                        // Три ряда, страницы листаются вбок. Вертикальная
+                        // прокрутка на ходу неудобна: список уезжает от
+                        // тряски и палец теряет место. Страницы же всегда
+                        // встают на одну и ту же позицию.
+                        //
+                        // Четыре колонки на 1280 — компромисс: пять делают
+                        // плитку такой узкой, что длинные названия режутся
+                        // на половине слова.
+                        val perPage = 12
+                        val pageCount = (filtered.size + perPage - 1) / perPage
+                        val pagerState = rememberPagerState(
+                            pageCount = { pageCount.coerceAtLeast(1) }
+                        )
+
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.weight(1f)
+                            ) { page ->
+                                val from = page * perPage
+                                val slice = filtered.drop(from).take(perPage)
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(4),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    userScrollEnabled = false,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(slice, key = { it.packageName + it.activityName }) { app ->
                             // Плитка горизонтальная: иконка слева в квадрате,
                             // подпись справа в одну строку — как у CC3.
                             // Вертикальная сетка с подписью в две строки
@@ -198,14 +220,42 @@ fun AllAppsScreen(
                                 Text(
                                     text = app.label,
                                     color = s.textPrimary,
-                                    fontSize = 16.sp,
+                                    fontSize = 15.sp,
                                     fontFamily = s.fontFamily,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier
-                                        .padding(start = 14.dp)
+                                        .padding(start = 12.dp)
                                         .weight(1f)
                                 )
+                            }
+                                    }
+                                }
+                            }
+
+                            // Точки-страницы. При одной странице не рисуем:
+                            // индикатор из единственной точки только сбивает.
+                            if (pageCount > 1) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterHorizontally)
+                                        .padding(top = 10.dp)
+                                ) {
+                                    repeat(pageCount) { i ->
+                                        val active = i == pagerState.currentPage
+                                        Box(
+                                            modifier = Modifier
+                                                .size(if (active) 9.dp else 7.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (active) s.accent
+                                                    else s.textPrimary.copy(alpha = 0.25f)
+                                                )
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

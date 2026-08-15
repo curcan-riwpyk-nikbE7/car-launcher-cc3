@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Brightness6
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.VerticalSplit
@@ -130,6 +131,7 @@ fun SettingsScreen(
     btAutoPlay: Boolean,
     onBtAutoPlay: (Boolean) -> Unit,
     onPickBtApp: () -> Unit = {},
+    onOpenCarSettings: () -> Unit = {},
     btRevision: Int = 0,
     speedMode: String,
     onSpeedMode: (String) -> Unit,
@@ -207,7 +209,7 @@ fun SettingsScreen(
                     )
                     SettingsTab.System -> SystemTab(
                         hasNotificationAccess, onNotificationAccess,
-                        btAutoPlay, onBtAutoPlay, onPickBtApp, btRevision,
+                        btAutoPlay, onBtAutoPlay, onPickBtApp, onOpenCarSettings, btRevision,
                         speedMode, onSpeedMode, onReset
                     )
                 }
@@ -696,6 +698,7 @@ private fun SystemTab(
     btAutoPlay: Boolean,
     onBtAutoPlay: (Boolean) -> Unit,
     onPickBtApp: () -> Unit,
+    onOpenCarSettings: () -> Unit,
     revision: Int,
     speedMode: String,
     onSpeedMode: (String) -> Unit,
@@ -716,6 +719,16 @@ private fun SystemTab(
                 subtitle = if (hasNotificationAccess) "Выдан" else "Не выдан",
                 accentIcon = hasNotificationAccess,
                 onClick = onNotificationAccess,
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+        item {
+            SettingTile(
+                icon = Icons.Rounded.DirectionsCar,
+                title = "Автомобиль и звук",
+                subtitle = "Кнопки руля, громкость, яркость",
+                accentIcon = true,
+                onClick = onOpenCarSettings,
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }

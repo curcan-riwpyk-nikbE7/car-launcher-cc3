@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Podcasts
+import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.SkipNext
@@ -160,6 +161,7 @@ fun ExpandedCar(
     visible: Boolean,
     speedKmh: Int,
     onResetTrip: () -> Unit,
+    onOpenCarInfo: () -> Unit = {},
     onClose: () -> Unit
 ) {
     val s = LocalThemeSpec.current
@@ -186,18 +188,39 @@ fun ExpandedCar(
             }
 
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(top = 26.dp)
-                    .clip(RoundedCornerShape(s.buttonCorner))
-                    .clickable(onClick = onResetTrip)
-                    .padding(horizontal = 16.dp, vertical = 9.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(top = 26.dp)
             ) {
-                Icon(Icons.Rounded.RestartAlt, null, tint = s.accent, modifier = Modifier.size(18.dp))
-                Text(
-                    stringResource(R.string.trip_reset), color = s.accent, fontSize = 14.sp,
-                    fontFamily = s.fontFamily, modifier = Modifier.padding(start = 8.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(s.buttonCorner))
+                        .clickable(onClick = onResetTrip)
+                        .padding(horizontal = 16.dp, vertical = 9.dp)
+                ) {
+                    Icon(Icons.Rounded.RestartAlt, null, tint = s.accent, modifier = Modifier.size(18.dp))
+                    Text(
+                        stringResource(R.string.trip_reset), color = s.accent, fontSize = 14.sp,
+                        fontFamily = s.fontFamily, modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+
+                // Общий пробег и ТО живут на отдельном экране: здесь
+                // показания текущей поездки, там история и обслуживание.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(s.buttonCorner))
+                        .background(s.accent.copy(alpha = 0.14f))
+                        .clickable(onClick = onOpenCarInfo)
+                        .padding(horizontal = 16.dp, vertical = 9.dp)
+                ) {
+                    Icon(Icons.Rounded.Build, null, tint = s.accent, modifier = Modifier.size(18.dp))
+                    Text(
+                        "Пробег и ТО", color = s.accent, fontSize = 14.sp,
+                        fontFamily = s.fontFamily, modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
             }
         }
     }

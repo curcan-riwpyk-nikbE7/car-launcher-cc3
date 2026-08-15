@@ -52,7 +52,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -86,8 +85,6 @@ fun ControlShade(
     weatherKey: Int = 0
 ) {
     val context = LocalContext.current
-    val s = LocalThemeSpec.current
-    val haptic = LocalHapticFeedback.current
 
     // Тик раз в секунду, пока шторка открыта: время должно идти,
     // а состояние тумблеров — обновляться, если их поменяли извне.
@@ -141,8 +138,6 @@ private fun ShadePanel(
     onScreenOff: () -> Unit
 ) {
     val s = LocalThemeSpec.current
-    val haptic = LocalHapticFeedback.current
-    val density = LocalDensity.current
 
     val now = remember(tick) { Date() }
     val timeFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }

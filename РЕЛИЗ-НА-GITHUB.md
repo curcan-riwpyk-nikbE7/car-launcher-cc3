@@ -26,8 +26,8 @@
 3. **Release title**: `1.0 — первая версия`
 4. **Describe this release** — текст ниже (см. «Описание релиза»).
 5. **Attach binaries** — перетащите ОБА файла:
-   - `CarLauncher-release.apk`
-   - `CarLauncher-SYSTEM.apk`
+   - `KINGSAID.apk`
+   - `KINGSAID-SYSTEM.apk`
 6. **Publish release**.
 
 ### Почему два файла
@@ -79,8 +79,8 @@
 • Запуск приложений в окне (freeform) и на весь экран
 
 Два файла:
-• CarLauncher-release.apk — обычная установка, ставьте этот
-• CarLauncher-SYSTEM.apk — только для прошивок с системными правами
+• KINGSAID.apk — обычная установка, ставьте этот
+• KINGSAID-SYSTEM.apk — только для прошивок с системными правами
   (даёт встраивание приложений прямо в карточку). Подписан ключом AOSP platform,
   на обычной прошивке не установится.
 

@@ -95,6 +95,46 @@ object AudioProfiles {
         prefs(context).edit().putFloat(K_DUCK_LEVEL, v.coerceIn(0.05f, 0.9f)).apply()
     }
 
+
+    // ─────────────────────── тихий старт ───────────────────────
+
+    private const val K_SOFT_START = "soft_start_on"
+    private const val K_SOFT_LEVEL = "soft_start_level"
+
+    /**
+     * Ограничить громкость при включении магнитолы.
+     *
+     * Знакомая история: вечером слушал громко, утром завёл — и получил
+     * это же в лицо. Ограничиваем только если текущая громкость выше
+     * порога: тише сделать не пытаемся, человек мог намеренно оставить
+     * негромко.
+     */
+    fun softStartEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(K_SOFT_START, true)
+
+    fun setSoftStartEnabled(context: Context, v: Boolean) {
+        prefs(context).edit().putBoolean(K_SOFT_START, v).apply()
+    }
+
+    /** Потолок громкости при старте, доля 0..1. */
+    fun softStartLevel(context: Context): Float =
+        prefs(context).getFloat(K_SOFT_LEVEL, 0.45f)
+
+    fun setSoftStartLevel(context: Context, v: Float) {
+        prefs(context).edit().putFloat(K_SOFT_LEVEL, v.coerceIn(0.05f, 1f)).apply()
+    }
+
+    fun applySoftStart(context: Context) {
+        if (!softStartEnabled(context)) return
+        runCatching {
+            val a = am(context)
+            val max = a.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+            val cur = a.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val cap = (softStartLevel(context) * max).toInt().coerceIn(1, max)
+            if (cur > cap) a.setStreamVolume(AudioManager.STREAM_MUSIC, cap, 0)
+        }
+    }
+
     private var focusRequest: Any? = null
     private var volumeBeforeDuck = -1
 

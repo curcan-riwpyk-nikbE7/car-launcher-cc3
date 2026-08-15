@@ -9,7 +9,7 @@
 
 | Файл | Размер | Для чего |
 |---|---|---|
-| `CarLauncher-release.apk` | **1.4 МБ** | Подписан, ужат R8 — ставить на магнитолу |
+| `KINGSAID.apk` | **1.4 МБ** | Подписан, ужат R8 — ставить на магнитолу |
 | `CarLauncher-debug.apk` | 17 МБ | Для отладки |
 
 Оба собраны и проверены: `aapt2` подтверждает `minSdk 23`, `targetSdk 30`
@@ -433,7 +433,7 @@ keytool -genkeypair -keystore my.jks -alias my -keyalg RSA -validity 10000
 
 ```bash
 adb connect 192.168.0.x:5555      # или по USB
-adb install -r CarLauncher-release.apk
+adb install -r KINGSAID.apk
 ```
 
 Затем **Настройки → Приложения → По умолчанию → Главный экран → Car Launcher**,

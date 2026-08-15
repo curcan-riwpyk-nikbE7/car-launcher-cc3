@@ -18,6 +18,7 @@ import com.example.carlauncher.data.ShortcutStore
 import com.example.carlauncher.data.ThemeStore
 import com.example.carlauncher.data.WallpaperStore
 import com.example.carlauncher.ui.AppPickerDialog
+import com.example.carlauncher.ui.CarSettingsScreen
 import com.example.carlauncher.ui.CarLauncherTheme
 import com.example.carlauncher.ui.SettingsScreen
 import com.example.carlauncher.ui.ShortcutRow
@@ -31,6 +32,7 @@ class SettingsActivity : ComponentActivity() {
     private var apps by mutableStateOf<List<AppInfo>>(emptyList())
     private var revision by mutableStateOf(0)
     private var pickBtApp by mutableStateOf(false)
+    private var carSettings by mutableStateOf(false)
     private var notifAccess by mutableStateOf(false)
 
     private val slots = listOf(
@@ -102,6 +104,7 @@ class SettingsActivity : ComponentActivity() {
                     btAutoPlay = SettingsStore.btAutoPlay.value,
                     onBtAutoPlay = { SettingsStore.setBtAutoPlay(it) },
                     onPickBtApp = { pickBtApp = true },
+                    onOpenCarSettings = { carSettings = true },
                     btRevision = revision,
                     speedMode = SettingsStore.speedMode.value,
                     onSpeedMode = { SettingsStore.setSpeedMode(it) },
@@ -123,6 +126,13 @@ class SettingsActivity : ComponentActivity() {
                     },
                     onBack = { finish() }
                 )
+
+                // Настройки автомобиля отдельным экраном: кнопки руля,
+                // профили громкости и яркость связаны по смыслу, плиткой
+                // в общем списке они бы потерялись.
+                if (carSettings) {
+                    CarSettingsScreen(onClose = { carSettings = false })
+                }
 
                 if (pickBtApp) {
                     AppPickerDialog(

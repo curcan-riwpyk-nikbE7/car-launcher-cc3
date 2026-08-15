@@ -255,8 +255,53 @@ private val BlackTheme = ThemeSpec(
     isLight = false
 )
 
+// ─────────────────────────── 5. COROLLA ───────────────────────────
+// Своя тема, не из CC3: красный от эмблемы Toyota на графитовом фоне.
+// Красный взят приглушённый (#D8342B, не чистый #FF0000): на тёмном
+// экране ночью насыщенный красный расплывается и режет глаза.
+private val CorollaTheme = ThemeSpec(
+    id = "corolla",
+    title = "Corolla",
+    subtitle = "Красный Toyota · графит и хром",
+    bg = listOf(
+        Color(0xFF0C0C0E),
+        Color(0xFF141417),
+        Color(0xFF1C1A1C),
+        Color(0xFF121013)
+    ),
+    cardBg = Color(0xFF1A181B),
+    cardStroke = Color(0x40FFFFFF),
+    strokeWidth = 1.dp,
+    panelBg = Color(0xFF141215),
+    accent = Color(0xFFD8342B),
+    accent2 = Color(0xFFE86A50),
+    onAccent = Color(0xFFFFFFFF),
+    textPrimary = Color(0xFFF4F2F4),
+    textSecondary = Color(0xFFA8A2A8),
+    textDim = Color(0xFF6B656B),
+    carCardBg = Color(0xFF161416),
+    mediaGradient = listOf(Color(0xFF2E1E20), Color(0xFF48282A), Color(0xFF6B3230)),
+    mediaCornerTint = Color(0xFFD8342B),
+    radioGradient = listOf(Color(0xFF2A2224), Color(0xFF191618)),
+    overlayBg = Color(0xEE0E0C0E),
+    cardCorner = 22.dp,
+    iconCorner = 16.dp,
+    buttonCorner = 18.dp,
+    layout = LayoutStyle.SidebarLeft,
+    speedStyle = SpeedStyle.DigitalLarge,
+    clockStyle = ClockStyle.DigitalLarge,
+    showCarImage = true,
+    phoneMedia = true,
+    carGridImage = true,
+    tintCar = true,
+    showDecorRings = false,
+    uppercaseLabels = false,
+    monospace = false,
+    isLight = false
+)
+
 /** Все темы в порядке показа в галерее. */
-val AllThemes = listOf(VioletTheme, BlueTheme, GoldTheme, BlackTheme)
+val AllThemes = listOf(VioletTheme, BlueTheme, GoldTheme, BlackTheme, CorollaTheme)
 
 fun themeById(id: String?): ThemeSpec =
     AllThemes.firstOrNull { it.id == id } ?: VioletTheme
