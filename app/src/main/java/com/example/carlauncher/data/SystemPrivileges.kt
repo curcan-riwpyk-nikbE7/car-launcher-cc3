@@ -28,14 +28,22 @@ object SystemPrivileges {
      * отсутствия которого VirtualDisplay раньше оставался чёрным:
      * система просто не пускала чужую активность на наш дисплей.
      */
-    fun canEmbedActivities(context: Context): Boolean {
-        if (!isSystemUid) return false
-        return context.checkPermission(
+    /**
+     * Главная проверка. ACTIVITY_EMBEDDING — то самое право, из-за
+     * отсутствия которого VirtualDisplay остаётся чёрным: система
+     * не пускает чужую активность на наш дисплей.
+     *
+     * Раньше здесь стояло `if (!isSystemUid) return false`, и это
+     * ломало сборку без sharedUserId: право выдано, а мы сами себе
+     * его запрещали и молча уходили на freeform. Теперь спрашиваем
+     * систему напрямую — она и есть источник истины.
+     */
+    fun canEmbedActivities(context: Context): Boolean =
+        context.checkPermission(
             "android.permission.ACTIVITY_EMBEDDING",
             Process.myPid(),
             Process.myUid()
         ) == PackageManager.PERMISSION_GRANTED
-    }
 
     /**
      * Право менять secure-настройки. Нужно, чтобы включить

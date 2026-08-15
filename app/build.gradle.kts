@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.carlauncher"
         minSdk = 23          // Android 6.0 — типовые китайские ГУ
         targetSdk = 30       // намеренно 30: на targetSdk 31+ старые ГУ ломают часть intent'ов
-        versionCode = 12
-        versionName = "2.1"
+        versionCode = 13
+        versionName = "2.2"
 
         ndk {
             // Головные устройства все на ARM. Библиотеки Vosk для x86
@@ -65,6 +65,15 @@ android {
         // в android.uid.system, установка сорвётся целиком. Права
         // signature-уровня приходят и от одной совпавшей подписи.
         create("aosp") {
+            dimension = "privilege"
+            signingConfig = signingConfigs.getByName("release")
+        }
+        // То же самое, но с sharedUserId. Без него VirtualDisplay
+        // не принимает чужую активность даже при выданном
+        // ACTIVITY_EMBEDDING — на этом спотыкались все, кто делал PIP.
+        // Отдельным вариантом, потому что несовпадение подписи
+        // с sharedUserId срывает установку целиком.
+        create("aospuid") {
             dimension = "privilege"
             signingConfig = signingConfigs.getByName("release")
         }

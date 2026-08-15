@@ -68,6 +68,8 @@ fun LauncherPanel(
     onSettings: () -> Unit,
     onSystemSettings: () -> Unit,
     onAllApps: () -> Unit,
+    /** Удержание кубика: выбрать, что показывать в карточке вместо спидометра. */
+    onPickCardApp: () -> Unit = {},
     onNavigation: () -> Unit
 ) {
     val s = LocalThemeSpec.current
@@ -98,7 +100,8 @@ fun LauncherPanel(
                 AssistantOrb(onAssistant)
                 PanelIcon(LauncherIcons.Sliders, "Настройки лаунчера", onSettings)
                 PanelIcon(LauncherIcons.Gear, "Настройки Android", onSystemSettings)
-                PanelIcon(LauncherIcons.Cube, "Все приложения", onAllApps)
+                PanelIcon(LauncherIcons.Cube, "Все приложения", onAllApps,
+                    onLongClick = onPickCardApp)
                 NavButton(onNavigation)
             }
         } else {
@@ -116,8 +119,12 @@ fun LauncherPanel(
                 PanelIcon(LauncherIcons.Gear, "Настройки", onSettings,
                     Modifier.padding(top = d.panelGap * 1.25f),
                     onLongClick = onSystemSettings)
+                // Тап — меню приложений, удержание — выбор приложения
+                // в карточку. Так у штатных лаунчеров: пользователь
+                // выбирает приложение, а не способ его показать.
                 PanelIcon(LauncherIcons.Cube, "Все приложения", onAllApps,
-                    Modifier.padding(top = d.panelGap * 1.25f))
+                    Modifier.padding(top = d.panelGap * 1.25f),
+                    onLongClick = onPickCardApp)
                 Box(Modifier.weight(1f))
                 NavButton(onNavigation, Modifier.fillMaxWidth().height(d.navButtonHeight))
             }

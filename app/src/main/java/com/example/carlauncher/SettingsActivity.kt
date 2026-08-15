@@ -19,6 +19,7 @@ import com.example.carlauncher.data.ThemeStore
 import com.example.carlauncher.data.WallpaperStore
 import com.example.carlauncher.ui.AppPickerDialog
 import com.example.carlauncher.ui.CarSettingsScreen
+import com.example.carlauncher.ui.DiagnosticsScreen
 import com.example.carlauncher.ui.CarLauncherTheme
 import com.example.carlauncher.ui.SettingsScreen
 import com.example.carlauncher.ui.ShortcutRow
@@ -33,6 +34,7 @@ class SettingsActivity : ComponentActivity() {
     private var revision by mutableStateOf(0)
     private var pickBtApp by mutableStateOf(false)
     private var carSettings by mutableStateOf(false)
+    private var diagnostics by mutableStateOf(false)
     private var notifAccess by mutableStateOf(false)
 
     private val slots = listOf(
@@ -105,6 +107,7 @@ class SettingsActivity : ComponentActivity() {
                     onBtAutoPlay = { SettingsStore.setBtAutoPlay(it) },
                     onPickBtApp = { pickBtApp = true },
                     onOpenCarSettings = { carSettings = true },
+                    onOpenDiagnostics = { diagnostics = true },
                     btRevision = revision,
                     speedMode = SettingsStore.speedMode.value,
                     onSpeedMode = { SettingsStore.setSpeedMode(it) },
@@ -130,6 +133,10 @@ class SettingsActivity : ComponentActivity() {
                 // Настройки автомобиля отдельным экраном: кнопки руля,
                 // профили громкости и яркость связаны по смыслу, плиткой
                 // в общем списке они бы потерялись.
+                if (diagnostics) {
+                    DiagnosticsScreen(onClose = { diagnostics = false })
+                }
+
                 if (carSettings) {
                     CarSettingsScreen(onClose = { carSettings = false })
                 }

@@ -56,6 +56,7 @@ import com.example.carlauncher.data.DefaultLauncherCheck
 import com.example.carlauncher.data.PackageChangeEffect
 import com.example.carlauncher.data.MediaControl
 import com.example.carlauncher.data.BtMusicStarter
+import com.example.carlauncher.data.SystemPrivileges
 import com.example.carlauncher.data.SettingsStore
 import com.example.carlauncher.data.FreeformLauncher
 import com.example.carlauncher.data.SplitScreen
@@ -149,8 +150,6 @@ fun HomeScreen(
 
     // Список приложений обновляется сам при установке/удалении
     PackageChangeEffect { revision++ }
-    var showSpeedChoice by remember { mutableStateOf(false) }
-    var pendingMode by remember { mutableStateOf("embed") }
     // Приложение, встроенное в карточку прямо сейчас
     var embedFailed by remember { mutableStateOf(false) }
     // Границы карточки авто на экране — по ним ляжет плавающее окно
@@ -176,24 +175,33 @@ fun HomeScreen(
         )
     }
 
-    // Тап по спидометру: запустить назначенное приложение в выбранном режиме
+    // Тап по спидометру.
+    //
+    // Способ показа больше не спрашиваем — пробуем сами, по убыванию
+    // качества: встроить без рамки, не вышло → окно в границах карточки,
+    // не вышло → на весь экран. У штатных лаунчеров пользователь выбирает
+    // приложение, а не технологию, и это правильно: разница между
+    // ACTIVITY_EMBEDDING и freeform — наша забота, а не его.
     val onSpeedClick: () -> Unit = {
         val a = speedApp
         if (a != null) {
-            when (SettingsStore.speedMode.value) {
-                // В режиме встраивания приложение уже живёт в карточке
-                "embed" -> if (embedFailed) AppRepository.launch(context, a) else Unit
-                // Плавающее окно ровно в границах карточки — ближе всего
-                // к тому, как это выглядит в фирменных прошивках
-                "freeform" -> launchFreeform(a.packageName)
-                "split" -> SplitScreen.launchBeside(context, a.packageName)
+            when {
+                // Уже живёт в карточке — трогать нечего
+                SystemPrivileges.canEmbedActivities(context) && !embedFailed -> Unit
+                FreeformLauncher.isAvailable(context) -> launchFreeform(a.packageName)
                 else -> AppRepository.launch(context, a)
             }
         } else {
-            showSpeedChoice = true
+            pickerSlot = ShortcutStore.SLOT_SPEED
+            pickerTitle = "Что показывать вместо спидометра"
         }
     }
-    val onSpeedLongClick: () -> Unit = { showSpeedChoice = true }
+    // Удержание — сменить приложение в карточке. Сразу выбор приложения,
+    // без промежуточного меню режимов.
+    val onSpeedLongClick: () -> Unit = {
+        pickerSlot = ShortcutStore.SLOT_SPEED
+        pickerTitle = "Что показывать вместо спидометра"
+    }
 
     // --- общие блоки, которые раскладка расставляет по-разному ---
 
@@ -222,6 +230,10 @@ fun HomeScreen(
                 }
             },
             onAllApps = { context.startActivity(Intent(context, AllAppsActivity::class.java)) },
+            onPickCardApp = {
+                pickerSlot = ShortcutStore.SLOT_SPEED
+                pickerTitle = "Что показывать вместо спидометра"
+            },
             onNavigation = { AppRepository.launchFirstAvailable(context, AppRepository.NAVIGATION) }
         )
     }
@@ -287,8 +299,10 @@ fun HomeScreen(
                     onSpeedClick = onSpeedClick,
                     onSpeedLongClick = onSpeedLongClick,
                     onBounds = { r -> cardBounds.set(r) },
-                    embeddedPackage = speedApp?.packageName
-                        ?.takeIf { SettingsStore.speedMode.value == "embed" && !embedFailed },
+                    // Встраиваем всегда, когда система это позволяет.
+                    // Не позволяет — CarCard сам покажет спидометр,
+                    // а приложение откроется окном по нажатию.
+                    embeddedPackage = speedApp?.packageName?.takeIf { !embedFailed },
                     onEmbedFailed = { embedFailed = true },
                     onClimate = {
                         AppRepository.launchFirstAvailable(
@@ -617,50 +631,6 @@ fun HomeScreen(
 
 
 
-    if (showSpeedChoice) {
-        LaunchModeDialog(
-            currentApp = speedApp?.label,
-            freeformAvailable = FreeformLauncher.isAvailable(context),
-            currentArea = SettingsStore.speedArea.value,
-            onAreaChange = { SettingsStore.setSpeedArea(it) },
-            onPickEmbed = {
-                showSpeedChoice = false
-                pendingMode = "embed"
-                embedFailed = false
-                SettingsStore.setSpeedMode("embed")
-                pickerSlot = ShortcutStore.SLOT_SPEED
-                pickerTitle = "Какое приложение встроить в карточку"
-            },
-            onPickFreeform = {
-                showSpeedChoice = false
-                pendingMode = "freeform"
-                SettingsStore.setSpeedMode("freeform")
-                pickerSlot = ShortcutStore.SLOT_SPEED
-                pickerTitle = "Какое приложение показывать в карточке"
-            },
-            onPickSplit = {
-                showSpeedChoice = false
-                pendingMode = "split"
-                SettingsStore.setSpeedMode("split")
-                pickerSlot = ShortcutStore.SLOT_SPEED
-                pickerTitle = "Какое приложение открывать рядом"
-            },
-            onPickFullscreen = {
-                showSpeedChoice = false
-                pendingMode = "full"
-                SettingsStore.setSpeedMode("full")
-                pickerSlot = ShortcutStore.SLOT_SPEED
-                pickerTitle = "Какое приложение запускать"
-            },
-            onClearApp = {
-                showSpeedChoice = false
-                store.clear(ShortcutStore.SLOT_SPEED)
-                revision++
-            },
-            onDismiss = { showSpeedChoice = false }
-        )
-    }
-
     pickerSlot?.let { slot ->
         AppPickerDialog(
             apps = apps,
@@ -671,12 +641,13 @@ fun HomeScreen(
                 pickerSlot = null
                 // Сразу показываем результат: запускаем в выбранном режиме
                 if (slot == ShortcutStore.SLOT_SPEED) {
-                    when (pendingMode) {
-                        // Встроенное приложение стартует само при отрисовке
-                        "embed" -> embedFailed = false
-                        "freeform" -> launchFreeform(app.packageName)
-                        "split" -> SplitScreen.launchBeside(context, app.packageName)
-                        else -> AppRepository.launch(context, app)
+                    // Встроенное приложение поднимется само при отрисовке
+                    // карточки. Если прав нет — покажем его окном.
+                    embedFailed = false
+                    if (!SystemPrivileges.canEmbedActivities(context) &&
+                        FreeformLauncher.isAvailable(context)
+                    ) {
+                        launchFreeform(app.packageName)
                     }
                 }
             },

@@ -43,6 +43,7 @@ import androidx.compose.material.icons.rounded.Brightness6
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.DirectionsCar
+import androidx.compose.material.icons.rounded.FactCheck
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.VerticalSplit
@@ -132,6 +133,7 @@ fun SettingsScreen(
     onBtAutoPlay: (Boolean) -> Unit,
     onPickBtApp: () -> Unit = {},
     onOpenCarSettings: () -> Unit = {},
+    onOpenDiagnostics: () -> Unit = {},
     btRevision: Int = 0,
     speedMode: String,
     onSpeedMode: (String) -> Unit,
@@ -209,7 +211,8 @@ fun SettingsScreen(
                     )
                     SettingsTab.System -> SystemTab(
                         hasNotificationAccess, onNotificationAccess,
-                        btAutoPlay, onBtAutoPlay, onPickBtApp, onOpenCarSettings, btRevision,
+                        btAutoPlay, onBtAutoPlay, onPickBtApp, onOpenCarSettings,
+                        onOpenDiagnostics, btRevision,
                         speedMode, onSpeedMode, onReset
                     )
                 }
@@ -699,6 +702,7 @@ private fun SystemTab(
     onBtAutoPlay: (Boolean) -> Unit,
     onPickBtApp: () -> Unit,
     onOpenCarSettings: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
     revision: Int,
     speedMode: String,
     onSpeedMode: (String) -> Unit,
@@ -719,6 +723,19 @@ private fun SystemTab(
                 subtitle = if (hasNotificationAccess) "Выдан" else "Не выдан",
                 accentIcon = hasNotificationAccess,
                 onClick = onNotificationAccess,
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+        item {
+            // Показывает, что именно система разрешила. Без него
+            // «не работает встраивание» — слишком общая жалоба:
+            // причин четыре, а снаружи выглядят одинаково.
+            SettingTile(
+                icon = Icons.Rounded.FactCheck,
+                title = "Диагностика прав",
+                subtitle = "Почему карта не в карточке",
+                accentIcon = true,
+                onClick = onOpenDiagnostics,
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Сборка под прошивки с тегом test-keys.
+
+  AIDA64 на этом ГУ показывает:
+      alps/full_k62v1_64_bsp/k62v1_64_bsp:8.1.0/O11019/...:user/test-keys
+      Теги: test-keys
+
+  Это ключ testkey из AOSP, а не platform — их часто путают, но подписи
+  разные, и система сравнивает побайтно. Раньше системная версия
+  подписывалась platform и не устанавливалась именно из-за этого.
+
+  sharedUserId ЗДЕСЬ ЕСТЬ — в этом всё отличие от сборки aosp.
+
+  Разработчики других лаунчеров с PIP пишут прямым текстом: если подпись
+  не совпала, приложение не попадает под системный uid, и встраивание
+  не работает. Одного права ACTIVITY_EMBEDDING мало — VirtualDisplay
+  чужую активность не примет.
+
+  Плата за это: при малейшем расхождении подписи установка сорвётся
+  целиком. Поэтому вариантов два — с uid и без, ставить по очереди.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:sharedUserId="android.uid.system">
+
+    <!--
+      Главное право. Без него ActivityOptions.setLaunchDisplayId для чужого
+      приложения молча игнорируется, и вместо карты остаётся спидометр.
+    -->
+    <uses-permission android:name="android.permission.ACTIVITY_EMBEDDING"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Держать окно чужого приложения внутри своей карточки -->
+    <uses-permission android:name="android.permission.INTERNAL_SYSTEM_WINDOW"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Запуск на нужном дисплее без дублирования задач -->
+    <uses-permission android:name="android.permission.MANAGE_ACTIVITY_STACKS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.MANAGE_ACTIVITY_TASKS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.REAL_GET_TASKS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!--
+      force_resizable_activities: без него Яндекс Карты и YouTube верстают
+      интерфейс как для полного экрана и половина уезжает за границы блока.
+    -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
+    <uses-permission android:name="android.permission.CAPTURE_VIDEO_OUTPUT"
+        tools:ignore="ProtectedPermissions" />
+</manifest>

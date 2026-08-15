@@ -1,0 +1,207 @@
+package com.example.carlauncher.ui
+
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Process
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.carlauncher.data.FreeformLauncher
+import com.example.carlauncher.data.SystemPrivileges
+
+/**
+ * Что именно система нам разрешила.
+ *
+ * Появился, потому что «не работает встраивание» — слишком общая жалоба:
+ * причин может быть четыре, и снаружи они выглядят одинаково. Здесь
+ * видно, какая именно сработала.
+ */
+@Composable
+fun DiagnosticsScreen(onClose: () -> Unit) {
+    val s = LocalThemeSpec.current
+    val context = LocalContext.current
+
+    val rows = remember { collect(context) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(s.bgBrush)
+            .padding(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Диагностика прав",
+                color = s.textPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = s.fontFamily
+            )
+            Spacer(Modifier.weight(1f))
+            Icon(
+                Icons.Rounded.Close, "Закрыть",
+                tint = s.textSecondary,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable(onClick = onClose)
+                    .padding(9.dp)
+            )
+        }
+
+        Text(
+            "Если карта не показывается в карточке — причина здесь",
+            color = s.textDim,
+            fontSize = 13.sp,
+            fontFamily = s.fontFamily,
+            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+        )
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            items(rows) { r ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(s.cardBg)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(r.title, color = s.textPrimary, fontSize = 15.sp, fontFamily = s.fontFamily)
+                        if (r.hint.isNotBlank()) {
+                            Text(r.hint, color = s.textDim, fontSize = 11.sp, fontFamily = s.fontFamily)
+                        }
+                    }
+                    Text(
+                        text = r.value,
+                        color = when (r.state) {
+                            State.Good -> Color(0xFF4CD07D)
+                            State.Bad -> Color(0xFFFF8A65)
+                            State.Info -> s.textSecondary
+                        },
+                        fontSize = 14.sp,
+                        fontFamily = if (r.mono) FontFamily.Monospace else s.fontFamily
+                    )
+                }
+            }
+        }
+    }
+}
+
+private enum class State { Good, Bad, Info }
+
+private data class Row3(
+    val title: String,
+    val value: String,
+    val state: State,
+    val hint: String = "",
+    val mono: Boolean = false
+)
+
+private fun collect(context: Context): List<Row3> {
+    val out = mutableListOf<Row3>()
+
+    // ─── встраивание ───
+    val embed = SystemPrivileges.canEmbedActivities(context)
+    out += Row3(
+        "Встраивание в карточку",
+        if (embed) "работает" else "нет прав",
+        if (embed) State.Good else State.Bad,
+        if (embed) "карта показывается прямо в блоке"
+        else "нужна подпись ключом прошивки"
+    )
+
+    val uid = Process.myUid()
+    out += Row3(
+        "Системный пользователь",
+        if (uid == 1000) "да" else "нет (uid $uid)",
+        if (uid == 1000) State.Good else State.Bad,
+        "без него VirtualDisplay не принимает чужое окно"
+    )
+
+    val secure = SystemPrivileges.canWriteSecureSettings(context)
+    out += Row3(
+        "Изменение системных настроек",
+        if (secure) "разрешено" else "нет",
+        if (secure) State.Good else State.Info,
+        "нужно, чтобы карта верстались по размеру блока"
+    )
+
+    val freeform = FreeformLauncher.isAvailable(context)
+    out += Row3(
+        "Плавающие окна",
+        if (freeform) "включены" else "выключены",
+        if (freeform) State.Good else State.Info,
+        "запасной путь, если встраивание недоступно"
+    )
+
+    // ─── про устройство ───
+    out += Row3("Android", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})", State.Info)
+    out += Row3("Платформа", Build.HARDWARE, State.Info, mono = true)
+
+    // Тег прошивки — по нему видно, каким ключом она подписана.
+    // test-keys значит стандартный AOSP testkey, release-keys —
+    // собственный ключ производителя, и тогда шансов нет.
+    val tags = Build.TAGS ?: "?"
+    out += Row3(
+        "Подпись прошивки",
+        tags,
+        if (tags.contains("test")) State.Good else State.Bad,
+        if (tags.contains("test")) "стандартный ключ, наша подпись подходит"
+        else "свой ключ производителя",
+        mono = true
+    )
+
+    out += Row3("Сборка", Build.DISPLAY.take(40), State.Info, mono = true)
+
+    // ─── наша подпись ───
+    val sig = runCatching {
+        val pm = context.packageManager
+        @Suppress("DEPRECATION")
+        val info = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
+        @Suppress("DEPRECATION")
+        val bytes = info.signatures?.firstOrNull()?.toByteArray() ?: return@runCatching "?"
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        md.digest(bytes).take(4).joinToString("") { "%02x".format(it) }
+    }.getOrDefault("?")
+
+    out += Row3(
+        "Подпись лаунчера",
+        sig,
+        State.Info,
+        "a40da80a — AOSP testkey, c8a2e9bc — platform",
+        mono = true
+    )
+
+    return out
+}
