@@ -1,5 +1,6 @@
 package com.example.carlauncher.ui
 
+import com.example.carlauncher.data.BtMusicStarter
 import com.example.carlauncher.data.SettingsStore
 import com.example.carlauncher.data.UpdateChecker
 import kotlinx.coroutines.launch
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Brightness6
+import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.DarkMode
@@ -127,6 +129,8 @@ fun SettingsScreen(
     onNightMode: (Boolean) -> Unit,
     btAutoPlay: Boolean,
     onBtAutoPlay: (Boolean) -> Unit,
+    onPickBtApp: () -> Unit = {},
+    btRevision: Int = 0,
     speedMode: String,
     onSpeedMode: (String) -> Unit,
     hasWallpaper: Boolean,
@@ -203,7 +207,8 @@ fun SettingsScreen(
                     )
                     SettingsTab.System -> SystemTab(
                         hasNotificationAccess, onNotificationAccess,
-                        btAutoPlay, onBtAutoPlay, speedMode, onSpeedMode, onReset
+                        btAutoPlay, onBtAutoPlay, onPickBtApp, btRevision,
+                        speedMode, onSpeedMode, onReset
                     )
                 }
             }
@@ -690,6 +695,8 @@ private fun SystemTab(
     onNotificationAccess: () -> Unit,
     btAutoPlay: Boolean,
     onBtAutoPlay: (Boolean) -> Unit,
+    onPickBtApp: () -> Unit,
+    revision: Int,
     speedMode: String,
     onSpeedMode: (String) -> Unit,
     onReset: () -> Unit
@@ -720,6 +727,32 @@ private fun SystemTab(
                 accentIcon = btAutoPlay,
                 trailing = { ThemedSwitch(btAutoPlay, onBtAutoPlay) },
                 onClick = { onBtAutoPlay(!btAutoPlay) },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+        item {
+            // Пакет BT-приложения у каждого производителя свой, угадать
+            // его списком получается не всегда. Проще дать выбрать руками
+            // один раз — дальше лаунчер поднимает канал именно им.
+            val ctx = LocalContext.current
+            val savedPkg = remember(revision) {
+                runCatching {
+                    ctx.getSharedPreferences("car_launcher_shortcuts", android.content.Context.MODE_PRIVATE)
+                        .getString(BtMusicStarter.KEY_BT_APP, null)
+                }.getOrNull()
+            }
+            SettingTile(
+                icon = Icons.Rounded.LibraryMusic,
+                title = "Приложение BT-музыки",
+                subtitle = savedPkg?.let { pkg ->
+                    runCatching {
+                        ctx.packageManager.getApplicationLabel(
+                            ctx.packageManager.getApplicationInfo(pkg, 0)
+                        ).toString()
+                    }.getOrDefault(pkg)
+                } ?: "Определяется автоматически",
+                accentIcon = savedPkg != null,
+                onClick = onPickBtApp,
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }

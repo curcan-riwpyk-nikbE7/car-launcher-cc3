@@ -30,6 +30,7 @@ class SettingsActivity : ComponentActivity() {
 
     private var apps by mutableStateOf<List<AppInfo>>(emptyList())
     private var revision by mutableStateOf(0)
+    private var pickBtApp by mutableStateOf(false)
     private var notifAccess by mutableStateOf(false)
 
     private val slots = listOf(
@@ -100,6 +101,8 @@ class SettingsActivity : ComponentActivity() {
                     onNightMode = { SettingsStore.setNightMode(it) },
                     btAutoPlay = SettingsStore.btAutoPlay.value,
                     onBtAutoPlay = { SettingsStore.setBtAutoPlay(it) },
+                    onPickBtApp = { pickBtApp = true },
+                    btRevision = revision,
                     speedMode = SettingsStore.speedMode.value,
                     onSpeedMode = { SettingsStore.setSpeedMode(it) },
                     hasWallpaper = WallpaperStore.bitmap.value != null,
@@ -120,6 +123,24 @@ class SettingsActivity : ComponentActivity() {
                     },
                     onBack = { finish() }
                 )
+
+                if (pickBtApp) {
+                    AppPickerDialog(
+                        apps = apps,
+                        title = "Какое приложение держит Bluetooth-музыку",
+                        onPick = { app ->
+                            store.setBtMusicApp(app.packageName)
+                            revision++
+                            pickBtApp = false
+                        },
+                        onReset = {
+                            store.setBtMusicApp(null)
+                            revision++
+                            pickBtApp = false
+                        },
+                        onDismiss = { pickBtApp = false }
+                    )
+                }
 
                 pickerSlot?.let { slot ->
                     AppPickerDialog(

@@ -79,6 +79,17 @@ class ShortcutStore(context: Context) {
         e.apply()
     }
 
+
+    /**
+     * Пакет приложения, которое держит Bluetooth-аудиоканал.
+     * Список известных имён покрывает не все прошивки, поэтому даём
+     * выбрать вручную — это надёжнее любых догадок.
+     */
+    fun setBtMusicApp(pkg: String?) {
+        if (pkg == null) prefs.edit().remove(BtMusicStarter.KEY_BT_APP).apply()
+        else prefs.edit().putString(BtMusicStarter.KEY_BT_APP, pkg).apply()
+    }
+
     fun getInt(key: String, def: Int): Int = prefs.getInt(key, def)
 
     fun setInt(key: String, value: Int) {

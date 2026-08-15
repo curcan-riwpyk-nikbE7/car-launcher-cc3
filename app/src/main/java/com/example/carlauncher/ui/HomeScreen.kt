@@ -55,6 +55,7 @@ import com.example.carlauncher.data.AppRepository
 import com.example.carlauncher.data.DefaultLauncherCheck
 import com.example.carlauncher.data.PackageChangeEffect
 import com.example.carlauncher.data.MediaControl
+import com.example.carlauncher.data.BtMusicStarter
 import com.example.carlauncher.data.SettingsStore
 import com.example.carlauncher.data.FreeformLauncher
 import com.example.carlauncher.data.SplitScreen
@@ -245,7 +246,7 @@ fun HomeScreen(
                 if (spec.phoneMedia && nowPlaying.isBluetooth) {
                     PhoneMediaCard(
                         state = nowPlaying,
-                        onPlayPause = { MediaControl.playPause(context); revision++ },
+                        onPlayPause = { smartPlayPause(context); revision++ },
                         onNext = { MediaControl.next(context); revision++ },
                         onPrev = { MediaControl.previous(context); revision++ },
                         onOpenPlayer = openPlayer,
@@ -255,7 +256,7 @@ fun HomeScreen(
                 } else if (spec.phoneMedia) {
                     CoverMediaCard(
                         state = nowPlaying,
-                        onPlayPause = { MediaControl.playPause(context); revision++ },
+                        onPlayPause = { smartPlayPause(context); revision++ },
                         onNext = { MediaControl.next(context); revision++ },
                         onPrev = { MediaControl.previous(context); revision++ },
                         onOpenPlayer = openPlayer,
@@ -265,7 +266,7 @@ fun HomeScreen(
                 } else {
                     MediaCard(
                         state = nowPlaying,
-                        onPlayPause = { MediaControl.playPause(context); revision++ },
+                        onPlayPause = { smartPlayPause(context); revision++ },
                         onNext = { MediaControl.next(context); revision++ },
                         onPrev = { MediaControl.previous(context); revision++ },
                         onOpenPlayer = openPlayer,
@@ -352,7 +353,7 @@ fun HomeScreen(
             ) {
                 MediaCard(
                     state = nowPlaying,
-                    onPlayPause = { MediaControl.playPause(context); revision++ },
+                    onPlayPause = { smartPlayPause(context); revision++ },
                     onNext = { MediaControl.next(context); revision++ },
                     onPrev = { MediaControl.previous(context); revision++ },
                     onOpenPlayer = {
@@ -564,7 +565,7 @@ fun HomeScreen(
         ExpandedPlayer(
             visible = playerExpanded,
             state = nowPlaying,
-            onPlayPause = { MediaControl.playPause(context); revision++ },
+            onPlayPause = { smartPlayPause(context); revision++ },
             onNext = { MediaControl.next(context); revision++ },
             onPrev = { MediaControl.previous(context); revision++ },
             onOpenApp = {
@@ -674,4 +675,25 @@ fun HomeScreen(
             onDismiss = { pickerSlot = null }
         )
     }
+}
+
+/**
+ * Умный play/pause.
+ *
+ * На китайских ГУ штатное BT-приложение держит аудиоканал: пока его
+ * не поднять, телефон играет «в никуда» и обычный play уходит впустую.
+ * Раньше это лечилось только при подключении телефона, но магнитола
+ * часто просыпается уже с подключённым устройством и брошкаст мы
+ * пропускаем.
+ *
+ * Поэтому: если сессии нет вообще — сначала поднимаем канал, и только
+ * потом играем. Если сессия есть, ведём себя как обычно.
+ */
+private fun smartPlayPause(context: android.content.Context) {
+    val now = MediaControl.read(context)
+    if (!now.hasSession) {
+        BtMusicStarter.ensureChannel(context)
+        return
+    }
+    MediaControl.playPause(context)
 }

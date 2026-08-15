@@ -186,7 +186,14 @@ object AppRepository {
     val RADIO_LABELS = listOf("FM-радио", "FM Radio", "Радио", "Radio", "FM")
     val MUSIC_LABELS = listOf("Музыка", "Music", "Медиа", "Media")
     val PHONE_LABELS = listOf("Bluetooth", "BT телефон", "Телефон", "Phone", "Блютуз")
-    val BT_MUSIC_LABELS = listOf("BT Музыка", "Bluetooth Music", "BT Music")
+    // На магнитоле подпись под иконкой пишут кто во что горазд, в том
+    // числе кириллицей «БТ». Поиск идёт по вхождению, поэтому короткие
+    // куски вроде «БТ-Муз» ловят и «БТ-Музыка», и «БТ Музыка».
+    val BT_MUSIC_LABELS = listOf(
+        "BT Музыка", "БТ-Музыка", "БТ Музыка", "БТ-Муз", "БТ Муз",
+        "Bluetooth Music", "BT Music", "BT-Music", "Блютуз музыка",
+        "Bluetooth Музыка", "BTMusic", "A2DP"
+    )
     val VIDEO_LABELS = listOf("YouTube", "Ютуб", "Видео", "Video", "Галерея", "Gallery")
     val CLIMATE_LABELS = listOf("AC", "Климат", "Climate", "Кондиционер", "Air")
     val CAR_INFO_LABELS = listOf("Car Info", "Car Setup", "Автомобиль", "Car", "Инфо")

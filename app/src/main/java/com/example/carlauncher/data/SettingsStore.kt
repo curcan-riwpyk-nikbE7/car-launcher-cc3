@@ -61,8 +61,12 @@ object SettingsStore {
     /** Показывать трип-компьютер на карточке авто. */
     val showTrip: MutableState<Boolean> = mutableStateOf(true)
 
-    /** Включать музыку при подключении телефона по Bluetooth. */
-    val btAutoPlay: MutableState<Boolean> = mutableStateOf(false)
+    /**
+     * Поднимать BT-приложение при подключении телефона.
+     * По умолчанию включено: без этого на китайских ГУ телефон играет
+     * «в никуда», пока штатное приложение не открыть руками.
+     */
+    val btAutoPlay: MutableState<Boolean> = mutableStateOf(true)
 
     /**
      * Слушать слово активации «Привет, машина».
@@ -99,7 +103,7 @@ object SettingsStore {
         radioName.value = p.getString(K_RADIO_NAME, "Авто Радио") ?: "Авто Радио"
         nightMode.value = p.getBoolean(K_NIGHT, false)
         showTrip.value = p.getBoolean(K_TRIP, true)
-        btAutoPlay.value = p.getBoolean(K_BT_AUTOPLAY, false)
+        btAutoPlay.value = p.getBoolean(K_BT_AUTOPLAY, true)
         voiceWake.value = p.getBoolean(K_VOICE_WAKE, false)
         prewarmWindow.value = p.getBoolean(K_PREWARM, true)
         // Умный дефолт: встраивание предлагаем только там, где оно реально

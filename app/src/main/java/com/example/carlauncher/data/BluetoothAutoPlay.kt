@@ -52,6 +52,35 @@ object BtMusicStarter {
     @Volatile
     private var busy = false
 
+    /**
+     * Поднять канал прямо сейчас — по нажатию кнопки, а не по подключению.
+     *
+     * Нужно потому, что телефон часто подключается ещё до старта лаунчера
+     * (магнитола просыпается вместе с зажиганием), и брошкаст мы попросту
+     * пропускаем. Тогда пользователь жмёт play, а звука нет: канал никто
+     * не открыл. Здесь мы это чиним по требованию.
+     */
+    fun ensureChannel(context: Context, onDone: () -> Unit = {}) {
+        if (busy) return
+        busy = true
+        val h = Handler(Looper.getMainLooper())
+        val opened = openBtMusicApp(context)
+        if (!opened) {
+            busy = false
+            onDone()
+            return
+        }
+        // Ждём, пока приложение поднимется и захватит аудиоканал
+        h.postDelayed({
+            goHome(context)
+            h.postDelayed({
+                if (!MediaControl.read(context).isPlaying) MediaControl.playPause(context)
+                busy = false
+                onDone()
+            }, 700)
+        }, 1500)
+    }
+
     fun start(context: Context) {
         if (busy) return
         busy = true
@@ -89,10 +118,21 @@ object BtMusicStarter {
      * Пакет у каждого производителя свой, поэтому сначала список
      * известных, затем поиск по подписи под иконкой.
      */
-    private fun openBtMusicApp(context: Context): Boolean {
+    fun openBtMusicApp(context: Context): Boolean {
+        // Сначала то, что пользователь выбрал руками: на его ГУ пакет
+        // может называться как угодно, и это знание надёжнее наших догадок.
+        runCatching {
+            context.getSharedPreferences("car_launcher_shortcuts", Context.MODE_PRIVATE)
+                .getString(KEY_BT_APP, null)
+        }.getOrNull()?.let { saved ->
+            if (AppRepository.launchPackage(context, saved)) return true
+        }
+
         val candidates = listOf(
             "com.hzbhd.btmusic", "com.syu.btmusic", "com.ts.btmusic",
-            "com.android.bluetooth.music", "com.hzbhd.bt", "com.syu.bt"
+            "com.android.bluetooth.music", "com.hzbhd.bt", "com.syu.bt",
+            "com.txznet.music", "com.hct.btmusic", "com.autochips.btmusic",
+            "com.fyt.bt", "com.fyt.btmusic", "com.xy.btmusic"
         )
         for (pkg in candidates) {
             if (AppRepository.launchPackage(context, pkg)) return true
@@ -105,6 +145,9 @@ object BtMusicStarter {
         Log.w(TAG, "Приложение BT-музыки не найдено")
         return false
     }
+
+    /** Пакет BT-приложения, выбранный пользователем вручную. */
+    const val KEY_BT_APP = "bt_music_package"
 
     /** Свернуть текущее приложение — вернуться на главный экран. */
     private fun goHome(context: Context) {
