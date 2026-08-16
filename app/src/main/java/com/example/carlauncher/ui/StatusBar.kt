@@ -79,14 +79,10 @@ fun TopStatusStrip(
         modifier = modifier
             .fillMaxWidth()
             .height(h)
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color.Black.copy(alpha = 0.34f),
-                        Color.Transparent
-                    )
-                )
-            )
+        // Фона нет намеренно. Затемняющий градиент был нужен, пока
+        // полоса лежала поверх картинки машины и значки терялись
+        // на светлых местах. Теперь она занимает свою высоту над
+        // карточками, под ней чистый фон экрана — как у CC3.
     ) {
         TopStatusBar(
             weatherKey = weatherKey,

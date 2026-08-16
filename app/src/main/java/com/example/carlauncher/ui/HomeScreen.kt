@@ -473,11 +473,21 @@ fun HomeScreen(
         // сотню пикселей сверху — экран выглядел полупустым.
         Column(modifier = Modifier.fillMaxSize()) {
 
+        // Полоса статуса занимает свою высоту, а не лежит поверх карточек.
+        // Раньше значки Wi-Fi, микрофона и Bluetooth оказывались прямо
+        // на картинке машины и терялись на светлых местах — у CC3 они
+        // на чистом фоне над карточками.
+        TopStatusStrip(
+            weatherKey = weatherKey,
+            onOpenShade = { shadeOpen = true },
+            modifier = Modifier.fillMaxWidth()
+        )
+
         val outer = Modifier
             .fillMaxSize()
             .padding(
                 start = d.screenPadding, end = d.screenPadding,
-                top = d.screenPadding * 0.5f, bottom = d.screenPadding * 0.5f
+                top = 0.dp, bottom = d.screenPadding * 0.5f
             )
 
         // Раскладка целиком зависит от темы: панель может быть слева,
@@ -537,16 +547,6 @@ fun HomeScreen(
             }
         }
         }
-
-        // Полоса статуса поверх всей раскладки, включая боковую панель:
-        // край экрана выглядит цельным, а не обрезанным по ширине панели.
-        // Порядок важен — она объявлена после раскладки, значит рисуется
-        // сверху и остаётся кликабельной (громкость, шторка).
-        TopStatusStrip(
-            weatherKey = weatherKey,
-            onOpenShade = { shadeOpen = true },
-            modifier = Modifier.align(Alignment.TopStart)
-        )
 
         // Узкая полоса захвата у верхнего края: тянуть вниз — шторка.
         // Объявлена после строки статуса, но значки в ней остаются

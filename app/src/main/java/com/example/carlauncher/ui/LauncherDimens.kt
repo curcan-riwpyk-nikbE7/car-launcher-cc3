@@ -74,7 +74,11 @@ fun calcDimens(w: Dp, h: Dp): LauncherDimens {
     val nav = (hv * 0.176f).coerceIn(72f, 140f)
     val gap = (hv * 0.035f).coerceIn(8f, 26f)
 
-    val statusH = (hv * 0.062f).coerceIn(26f, 42f)
+    // Полоса статуса теперь занимает свою высоту над карточками,
+    // а не лежит поверх них. Поэтому она должна быть компактной:
+    // каждый лишний пиксель забирается у карточек. 5% от 720 = 36 px,
+    // значкам 18-19 px этого хватает с запасом.
+    val statusH = (hv * 0.050f).coerceIn(24f, 38f)
     val pad = (wv * 0.014f).coerceIn(8f, 18f)
     val cgap = (wv * 0.012f).coerceIn(7f, 15f)
 
