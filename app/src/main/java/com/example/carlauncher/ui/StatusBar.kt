@@ -37,6 +37,9 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Wifi
+import com.example.carlauncher.data.QuickControls
+import androidx.compose.material.icons.rounded.BluetoothDisabled
+import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,7 +75,8 @@ import java.util.Locale
 fun TopStatusStrip(
     modifier: Modifier = Modifier,
     weatherKey: Int = 0,
-    onOpenShade: (() -> Unit)? = null
+    onOpenShade: (() -> Unit)? = null,
+    onVoice: (() -> Unit)? = null
 ) {
     val h = dimens().statusBarHeight
     Box(
@@ -87,6 +91,7 @@ fun TopStatusStrip(
         TopStatusBar(
             weatherKey = weatherKey,
             onOpenShade = onOpenShade,
+            onVoice = onVoice,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 14.dp)
@@ -100,7 +105,9 @@ fun TopStatusStrip(
 fun TopStatusBar(
     modifier: Modifier = Modifier,
     weatherKey: Int = 0,
-    onOpenShade: (() -> Unit)? = null
+    onOpenShade: (() -> Unit)? = null,
+    /** Нажатие на микрофон. null — помощник не поднялся. */
+    onVoice: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var now by remember { mutableStateOf(Date()) }
@@ -117,6 +124,11 @@ fun TopStatusBar(
         context.registerReceiver(r, f)
         onDispose { runCatching { context.unregisterReceiver(r) } }
     }
+
+    // Состояние модулей перечитываем по тику часов: пользователь мог
+    // переключить их системной шторкой, пока лаунчер на экране.
+    val wifiOn = remember(now) { QuickControls.isWifiOn(context) }
+    val btOn = remember(now) { QuickControls.isBluetoothOn(context) }
 
     val fmt = remember { SimpleDateFormat("EE d.MM", Locale.getDefault()) }
     val am = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
@@ -135,7 +147,19 @@ fun TopStatusBar(
     ) {
         // Времени здесь нет намеренно: оно уже есть в панели слева,
         // а у штатного лаунчера в этой строке только дата и значки.
-        Icon(Icons.Rounded.Wifi, "Wi-Fi", tint = TextPrimary, modifier = Modifier.size(19.dp))
+        //
+        // Значки кликабельные: раньше они были просто нарисованы, и по ним
+        // нажимали впустую. Цвет показывает состояние — включённый модуль
+        // белый, выключенный приглушённый.
+        Icon(
+            imageVector = if (wifiOn) Icons.Rounded.Wifi else Icons.Rounded.WifiOff,
+            contentDescription = "Wi-Fi",
+            tint = if (wifiOn) TextPrimary else TextSecondary,
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .clickable { QuickControls.openInternetPanel(context) }
+        )
 
         Text(
             text = fmt.format(now).replaceFirstChar { it.uppercase() },
@@ -143,7 +167,14 @@ fun TopStatusBar(
             fontSize = 16.sp
         )
 
-        Icon(Icons.Rounded.Mic, "Голос", tint = TextPrimary, modifier = Modifier.size(18.dp))
+        Icon(
+            Icons.Rounded.Mic, "Голосовой помощник",
+            tint = TextPrimary,
+            modifier = Modifier
+                .size(21.dp)
+                .clip(CircleShape)
+                .clickable { onVoice?.invoke() }
+        )
 
         // Bluetooth и батарея стоят вплотную одной группой — так у штатного
         // лаунчера. Между ними меньше зазор, чем между остальными значками,
@@ -152,7 +183,21 @@ fun TopStatusBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            Icon(Icons.Rounded.Bluetooth, "Bluetooth", tint = TextPrimary, modifier = Modifier.size(18.dp))
+            Icon(
+                imageVector = if (btOn) Icons.Rounded.Bluetooth else Icons.Rounded.BluetoothDisabled,
+                contentDescription = "Bluetooth",
+                tint = if (btOn) TextPrimary else TextSecondary,
+                modifier = Modifier
+                    .size(21.dp)
+                    .clip(CircleShape)
+                    .combinedClickable(
+                        // Короткое нажатие переключает, долгое открывает
+                        // настройки: на части прошивок программное
+                        // переключение закрыто, и нужен запасной путь.
+                        onClick = { if (!QuickControls.toggleBluetooth(context)) QuickControls.openBluetoothSettings(context) },
+                        onLongClick = { QuickControls.openBluetoothSettings(context) }
+                    )
+            )
             PhoneBattery()
         }
 

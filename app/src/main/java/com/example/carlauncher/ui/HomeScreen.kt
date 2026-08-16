@@ -473,15 +473,10 @@ fun HomeScreen(
         // сотню пикселей сверху — экран выглядел полупустым.
         Column(modifier = Modifier.fillMaxSize()) {
 
-        // Полоса статуса занимает свою высоту, а не лежит поверх карточек.
-        // Раньше значки Wi-Fi, микрофона и Bluetooth оказывались прямо
-        // на картинке машины и терялись на светлых местах — у CC3 они
-        // на чистом фоне над карточками.
-        TopStatusStrip(
-            weatherKey = weatherKey,
-            onOpenShade = { shadeOpen = true },
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Полоса статуса объявлена внутри правой части раскладки
+        // (см. contentWithStatus ниже), а не здесь на всю ширину.
+        // У CC3 она начинается после боковой панели: над часами
+        // и орбом ничего не висит.
 
         val outer = Modifier
             .fillMaxSize()
@@ -490,15 +485,32 @@ fun HomeScreen(
                 top = 0.dp, bottom = d.screenPadding * 0.5f
             )
 
+        // Правая часть экрана: сверху полоса статуса, под ней карточки.
+        // Панель остаётся слева на всю высоту и полосой не перекрывается —
+        // именно так на CC3.
+        val contentWithStatus = @Composable { mod: Modifier ->
+            Column(modifier = mod) {
+                TopStatusStrip(
+                    weatherKey = weatherKey,
+                    onOpenShade = { shadeOpen = true },
+                    // Тот же помощник, что на орбе панели: микрофон
+                    // в строке — просто вторая точка входа.
+                    onVoice = onVoice,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                content(Modifier.fillMaxWidth().weight(1f))
+            }
+        }
+
         // Раскладка целиком зависит от темы: панель может быть слева,
         // справа, снизу доком или сверху строкой.
         when (spec.layout) {
             LayoutStyle.SidebarLeft -> Row(outer, horizontalArrangement = Arrangement.spacedBy(d.cardGap)) {
                 panel(Modifier.width(d.panelWidth).fillMaxHeight())
-                content(Modifier.weight(1f).fillMaxHeight())
+                contentWithStatus(Modifier.weight(1f).fillMaxHeight())
             }
             LayoutStyle.SidebarRight -> Row(outer, horizontalArrangement = Arrangement.spacedBy(d.cardGap)) {
-                content(Modifier.weight(1f).fillMaxHeight())
+                contentWithStatus(Modifier.weight(1f).fillMaxHeight())
                 panel(Modifier.width(d.panelWidth).fillMaxHeight())
             }
             LayoutStyle.BottomDock -> Column(outer, verticalArrangement = Arrangement.spacedBy(10.dp)) {
