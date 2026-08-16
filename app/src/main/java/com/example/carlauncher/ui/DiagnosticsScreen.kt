@@ -165,6 +165,18 @@ private fun collect(context: Context): List<Row3> {
         "запасной путь, если встраивание недоступно"
     )
 
+    // ─── питание автомобиля ───
+    // Показываем источник, а не только цифру: если вольты не пришли,
+    // сразу видно, молчит ли MCU или не найдены свойства и sysfs.
+    val (volts, src) = com.example.carlauncher.data.CarPower.pollVoltage()
+    out += Row3(
+        "Напряжение бортовой сети",
+        if (volts > 0f) "%.1f В".format(volts) else "не отдаётся",
+        if (volts > 0f) State.Good else State.Info,
+        if (volts > 0f) "источник: $src"
+        else "MCU не рассылает — ждём broadcast при смене зажигания"
+    )
+
     // ─── про устройство ───
     out += Row3("Android", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})", State.Info)
     out += Row3("Платформа", Build.HARDWARE, State.Info, mono = true)

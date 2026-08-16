@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.BatteryFull
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Mic
@@ -204,21 +205,33 @@ fun TopStatusBar(
 
         // Питание автомобиля. Напряжение показываем, только если MCU
         // его действительно прислал: выдуманное число хуже пустого места.
-        // Ниже 11.8 В на заглушенном моторе — повод зарядить аккумулятор,
-        // поэтому такие значения красим тревожным цветом.
+        //
+        // Цвет говорит о состоянии сам, без подписей: зелёный — идёт
+        // зарядка от генератора, оранжевый — аккумулятор подсел,
+        // красный — пора заводить или ставить на зарядку.
         val power by com.example.carlauncher.data.CarPower.rememberPower()
-        val volts = power.second
-        if (volts > 0f) {
+        if (power.hasVoltage) {
+            val lvl = power.level
+            val tint = when (lvl) {
+                com.example.carlauncher.data.CarPower.Level.Charging -> Color(0xFF4CD07D)
+                com.example.carlauncher.data.CarPower.Level.Good -> TextPrimary
+                com.example.carlauncher.data.CarPower.Level.Low -> Color(0xFFFFB74D)
+                else -> Color(0xFFFF5252)
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Icons.Rounded.BatteryChargingFull,
-                    contentDescription = "Аккумулятор",
-                    tint = if (volts < 11.8f) Color(0xFFFF8A65) else TextPrimary,
+                    // Молния только когда генератор реально заряжает,
+                    // иначе обычная батарея — иначе значок врёт.
+                    if (lvl == com.example.carlauncher.data.CarPower.Level.Charging)
+                        Icons.Rounded.BatteryChargingFull
+                    else Icons.Rounded.BatteryFull,
+                    contentDescription = "Бортовая сеть",
+                    tint = tint,
                     modifier = Modifier.size(19.dp)
                 )
                 Text(
-                    text = "%.1fV".format(volts),
-                    color = if (volts < 11.8f) Color(0xFFFF8A65) else TextPrimary,
+                    text = "%.1fV".format(power.volts),
+                    color = tint,
                     fontSize = 15.sp,
                     modifier = Modifier.padding(start = 3.dp)
                 )

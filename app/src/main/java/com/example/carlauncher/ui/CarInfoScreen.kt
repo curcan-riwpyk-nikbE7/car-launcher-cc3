@@ -137,6 +137,13 @@ fun CarInfoScreen(onClose: () -> Unit) {
             Stat("В пути", "${TripComputer.movingMs.value / 60000} мин")
             Stat("Средняя", "${TripComputer.averageKmh} км/ч")
             Stat("Максимум", "${TripComputer.maxKmh.value} км/ч")
+
+            // Напряжение здесь же, а не только в строке статуса: на этом
+            // экране на него смотрят осознанно, а не мельком.
+            val power by com.example.carlauncher.data.CarPower.rememberPower()
+            if (power.hasVoltage) {
+                Stat("Бортсеть", "%.1f В".format(power.volts))
+            }
         }
 
         Row(
