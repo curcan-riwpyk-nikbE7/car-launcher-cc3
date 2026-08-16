@@ -32,13 +32,33 @@ object UpdateChecker {
     private const val API =
         "https://api.github.com/repos/curcan-riwpyk-nikbE7/car-launcher-cc3/releases/latest"
 
-    /** Что нашли на сервере. */
+    /**
+     * Что нашли на сервере.
+     *
+     * @param alternates запасные файлы того же релиза. Нужны, если
+     *        основной окажется с чужой подписью: тогда перебираем их,
+     *        вместо того чтобы показывать пользователю глухой отказ
+     *        установщика.
+     */
     data class Release(
         val version: String,
         val notes: String,
         val url: String,
-        val sizeBytes: Long
+        val sizeBytes: Long,
+        val alternates: List<Pair<String, Long>> = emptyList()
     )
+
+    /** Чем закончилась подготовка файла к установке. */
+    sealed interface Prepared {
+        /** Файл проверен, подпись совпадает — можно ставить. */
+        data class Ready(val apk: File) : Prepared
+
+        /** Ни один файл в релизе не подошёл по подписи. */
+        data class WrongSignature(val expected: String, val found: String) : Prepared
+
+        /** Скачать не удалось. */
+        data object Failed : Prepared
+    }
 
     /** Версия установленного лаунчера. */
     fun currentVersion(context: Context): String = runCatching {
@@ -74,41 +94,51 @@ object UpdateChecker {
             val tag = json.optString("tag_name").removePrefix("v").trim()
             if (tag.isBlank()) return@withContext null
 
-            // Качаем APK ровно той сборки, что установлена: у трёх наших
-            // вариантов разные подписи, и чужой Android откажется ставить
-            // поверх с сообщением «приложение не установлено».
+            // Качаем APK ровно той сборки, что установлена: у наших
+            // вариантов разные подписи, и Android откажется ставить
+            // поверх чужую с сообщением «Приложение не установлено».
             //
-            // Имя файла зашито в сборку через BuildConfig. Раньше выбор
-            // шёл по слову "system" в имени файла, но после переименования
-            // в KINGSAID-PIP и KINGSAID-TESTKEY условие перестало совпадать
-            // ни с чем, и скачивался первый попавшийся APK из списка —
-            // отсюда и ошибка установки.
-            val wantName = BuildConfig.UPDATE_ASSET.lowercase()
+            // Выбор идёт по ИМЕНИ ФАЙЛА, но имя — только подсказка,
+            // а не решение. Раньше сначала искали слово "system",
+            // потом точное имя из BuildConfig; оба способа ломались
+            // при переименовании файлов в релизе. Поэтому здесь имя
+            // задаёт лишь порядок перебора, а окончательную проверку
+            // делает BuildIdentity уже по скачанному файлу: сверяет
+            // подпись и системный uid с нашими собственными.
             val assets = json.optJSONArray("assets") ?: return@withContext null
 
-            var url = ""
-            var size = 0L
+            val candidates = mutableListOf<Pair<String, Long>>()
+            val preferred = BuildConfig.UPDATE_ASSET.lowercase()
+
             for (i in 0 until assets.length()) {
                 val a = assets.getJSONObject(i)
-                val name = a.optString("name").lowercase()
-                if (name == wantName) {
-                    url = a.optString("browser_download_url")
-                    size = a.optLong("size")
-                    break
+                val name = a.optString("name")
+                if (!name.lowercase().endsWith(".apk")) continue
+                val url = a.optString("browser_download_url")
+                val size = a.optLong("size")
+                if (url.isBlank()) continue
+
+                // Свой файл ставим первым, остальные — запасными:
+                // если его переименовали, обновление всё равно найдётся
+                // перебором с проверкой подписи.
+                if (name.lowercase() == preferred) {
+                    candidates.add(0, url to size)
+                } else {
+                    candidates.add(url to size)
                 }
             }
-            // Своего файла в релизе нет — лучше промолчать, чем поставить
-            // чужую подпись и получить отказ установщика.
-            if (url.isBlank()) {
-                Log.w(TAG, "В релизе нет $wantName")
+
+            if (candidates.isEmpty()) {
+                Log.w(TAG, "В релизе нет ни одного APK")
                 return@withContext null
             }
 
             Release(
                 version = tag,
                 notes = json.optString("body").take(400),
-                url = url,
-                sizeBytes = size
+                url = candidates.first().first,
+                sizeBytes = candidates.first().second,
+                alternates = candidates.drop(1)
             )
         } catch (t: Throwable) {
             Log.e(TAG, "Проверка обновления не удалась", t)
@@ -169,6 +199,69 @@ object UpdateChecker {
             Log.e(TAG, "Скачивание не удалось", t)
             runCatching { out.delete() }
             null
+        }
+    }
+
+    /**
+     * Качает и проверяет обновление.
+     *
+     * Ключевой шаг — сверка подписи ДО запуска установщика. Раньше
+     * файл отдавался системе как есть, и при несовпадении подписи
+     * пользователь видел «Приложение не установлено» без всяких
+     * пояснений: непонятно, файл битый, места нет или ключ чужой.
+     *
+     * Теперь при несовпадении перебираем остальные файлы релиза —
+     * возможно, нужная сборка лежит там под другим именем. И только
+     * если не подошёл ни один, сообщаем причину человеческими словами.
+     */
+    suspend fun prepare(
+        context: Context,
+        release: Release,
+        onProgress: (Float) -> Unit
+    ): Prepared = withContext(Dispatchers.IO) {
+        val mine = BuildIdentity.current(context)
+
+        val urls = buildList {
+            add(release.url to release.sizeBytes)
+            addAll(release.alternates)
+        }
+
+        var lastFound = ""
+
+        for ((index, pair) in urls.withIndex()) {
+            val (url, size) = pair
+
+            val file = download(
+                context,
+                release.copy(url = url, sizeBytes = size)
+            ) { p ->
+                // Прогресс считаем по всему перебору, иначе полоса
+                // прыгала бы на ноль при каждой новой попытке.
+                onProgress((index + p) / urls.size)
+            } ?: continue
+
+            val theirs = BuildIdentity.ofFile(context, file)
+            if (theirs == null) {
+                Log.w(TAG, "Файл не разобрался как APK")
+                runCatching { file.delete() }
+                continue
+            }
+
+            if (BuildIdentity.isCompatible(mine, theirs)) {
+                Log.i(TAG, "Подходит: ${theirs.title}")
+                onProgress(1f)
+                return@withContext Prepared.Ready(file)
+            }
+
+            Log.w(TAG, "Подпись не та: нужна ${mine.short}, у файла ${theirs.short}")
+            lastFound = theirs.short
+            runCatching { file.delete() }
+        }
+
+        if (lastFound.isNotEmpty()) {
+            Prepared.WrongSignature(expected = mine.short, found = lastFound)
+        } else {
+            Prepared.Failed
         }
     }
 

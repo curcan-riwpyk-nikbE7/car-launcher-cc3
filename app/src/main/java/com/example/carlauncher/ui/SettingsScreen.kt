@@ -876,6 +876,7 @@ private fun SystemTab(
             var state by remember { mutableStateOf("idle") }
             var found by remember { mutableStateOf<UpdateChecker.Release?>(null) }
             var pct by remember { mutableStateOf(0f) }
+            var problem by remember { mutableStateOf("") }
 
             SettingTile(
                 icon = Icons.Rounded.Refresh,
@@ -886,6 +887,7 @@ private fun SystemTab(
                     "found" -> "Версия ${found?.version} · нажмите, чтобы скачать"
                     "downloading" -> "Скачиваю ${(pct * 100).toInt()}%"
                     "error" -> "Нет связи с сервером"
+                    "mismatch" -> problem
                     else -> "Версия ${UpdateChecker.currentVersion(ctx3)} · проверить"
                 },
                 accentIcon = state == "found",
@@ -895,11 +897,21 @@ private fun SystemTab(
                             val rel = found ?: return@SettingTile
                             state = "downloading"
                             scope3.launch {
-                                val f = UpdateChecker.download(ctx3, rel) { pct = it }
-                                if (f != null) {
-                                    UpdateChecker.install(ctx3, f)
-                                    state = "idle"
-                                } else state = "error"
+                                // Подпись сверяется до запуска установщика:
+                                // иначе система выдаёт «Приложение не установлено»
+                                // без объяснения причины.
+                                when (val r = UpdateChecker.prepare(ctx3, rel) { pct = it }) {
+                                    is UpdateChecker.Prepared.Ready -> {
+                                        UpdateChecker.install(ctx3, r.apk)
+                                        state = "idle"
+                                    }
+                                    is UpdateChecker.Prepared.WrongSignature -> {
+                                        problem = "В релизе нет сборки с вашей подписью " +
+                                            "(${r.expected}). Установите APK вручную"
+                                        state = "mismatch"
+                                    }
+                                    UpdateChecker.Prepared.Failed -> state = "error"
+                                }
                             }
                         }
                         "checking", "downloading" -> Unit

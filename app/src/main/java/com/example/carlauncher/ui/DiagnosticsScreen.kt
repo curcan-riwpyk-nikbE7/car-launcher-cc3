@@ -185,22 +185,23 @@ private fun collect(context: Context): List<Row3> {
     out += Row3("Сборка", Build.DISPLAY.take(40), State.Info, mono = true)
 
     // ─── наша подпись ───
-    val sig = runCatching {
-        val pm = context.packageManager
-        @Suppress("DEPRECATION")
-        val info = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
-        @Suppress("DEPRECATION")
-        val bytes = info.signatures?.firstOrNull()?.toByteArray() ?: return@runCatching "?"
-        val md = java.security.MessageDigest.getInstance("SHA-256")
-        md.digest(bytes).take(4).joinToString("") { "%02x".format(it) }
-    }.getOrDefault("?")
+    // Берём из BuildIdentity: там же, откуда обновление узнаёт,
+    // какой файл ему скачивать. Одно место — один ответ.
+    val id = com.example.carlauncher.data.BuildIdentity.current(context)
 
     out += Row3(
         "Подпись лаунчера",
-        sig,
-        State.Info,
-        "a40da80a — AOSP testkey, c8a2e9bc — platform",
+        if (id.certSha256.isEmpty()) "не прочиталась" else id.short,
+        if (id.certSha256.isEmpty()) State.Bad else State.Info,
+        "a40da80a — ключ AOSP testkey, fe3acea5 — свой ключ",
         mono = true
+    )
+
+    out += Row3(
+        "Какая сборка стоит",
+        id.title,
+        State.Info,
+        "обновление скачивает файл ровно с этими приметами"
     )
 
     return out
