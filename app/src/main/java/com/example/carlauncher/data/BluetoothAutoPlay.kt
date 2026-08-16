@@ -129,6 +129,10 @@ object BtMusicStarter {
         }
 
         val candidates = listOf(
+            // Первым — реальное имя из прошивки этого ГУ. Производитель
+            // Reglink, поэтому прежний список из hzbhd и syu промахивался,
+            // и приложение приходилось открывать руками.
+            "com.reglink.apps.btmusic", "com.reglink.btmusic",
             "com.hzbhd.btmusic", "com.syu.btmusic", "com.ts.btmusic",
             "com.android.bluetooth.music", "com.hzbhd.bt", "com.syu.bt",
             "com.txznet.music", "com.hct.btmusic", "com.autochips.btmusic",

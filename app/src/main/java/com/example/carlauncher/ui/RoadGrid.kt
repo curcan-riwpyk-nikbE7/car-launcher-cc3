@@ -6,101 +6,90 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import kotlin.math.pow
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.carlauncher.R
 
 /**
- * Бегущая перспективная сетка под машиной.
+ * Движение дороги под машиной — покадровая анимация.
  *
- * Раньше пробовали анимировать саму машину — покачивание, наклон
- * по акселерометру. Получилось хуже статичной картинки: изображение
- * дёргалось и выглядело дёшево, пользователь попросил вернуть как было.
+ * Две первые попытки были неверными, и обе поучительные.
  *
- * Здесь приём другой, тот, что используют штатные лаунчеры: машина
- * стоит неподвижно, а дорога под ней ползёт. Мозг достраивает движение
- * сам, и картинка при этом остаётся чистой.
+ * Сначала я рисовал свою сетку линиями поверх картинки. Но на ней уже
+ * есть готовая сетка из точек, со своей перспективой и цветом: две
+ * сетки накладывались и давали кашу поперёк кузова.
  *
- * Рисуется на Canvas поверх фона: ни одного нового файла в APK.
+ * Потом масштабировал картинку от точки схода. Движение появилось,
+ * но «дышало» всё изображение целиком, включая дальний план.
+ *
+ * Как оказалось, штатный лаунчер не вычисляет движение вовсе —
+ * он листает 30 заранее нарисованных кадров. Никакой математики:
+ * художник нарисовал цикл, дальние ряды в нём смещаются меньше
+ * ближних, и перспектива получается сама собой.
+ *
+ * Кадры лежат отдельным слоем с прозрачностью и ложатся поверх
+ * статичной картинки — машина при этом остаётся неподвижной.
  */
 @Composable
 fun RoadGrid(
     speedKmh: Int,
-    color: Color,
+    tint: ColorFilter?,
     modifier: Modifier = Modifier
 ) {
-    // Ниже 3 км/ч не анимируем: GPS на стоянке шумит, и сетка
-    // ползла бы у неподвижной машины.
+    // Ниже 3 км/ч не анимируем: GPS на стоянке шумит и показывает
+    // 1-2 км/ч, дорога ползла бы под неподвижной машиной.
     if (speedKmh < 3) return
 
-    // Период одного шага: чем быстрее едем, тем короче. Границы
-    // подобраны так, чтобы на 200 км/ч не превращалось в мельтешение.
-    val periodMs = (2400 - speedKmh * 9).coerceIn(320, 2400)
+    val frames = remember { FRAMES }
+
+    // Длительность полного цикла. На 200 км/ч не должно превращаться
+    // в мельтешение, поэтому нижняя граница 900 мс — это 33 кадра/с,
+    // быстрее человеческий глаз всё равно не различает.
+    val periodMs = (4000 - speedKmh * 15).coerceIn(900, 4000)
 
     val t = rememberInfiniteTransition(label = "road")
-    val phase by t.animateFloat(
+    val frame by t.animateFloat(
         initialValue = 0f,
-        targetValue = 1f,
+        targetValue = frames.size.toFloat(),
         animationSpec = infiniteRepeatable(
             animation = tween(periodMs, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "phase"
+        label = "frame"
     )
 
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
+    val index = frame.toInt().coerceIn(0, frames.lastIndex)
 
-        // Линия горизонта: выше неё сетки нет. Берём чуть выше середины —
-        // так же, как на исходной картинке.
-        val horizon = h * 0.42f
-        val depth = h - horizon
-        if (depth <= 0f) return@Canvas
-
-        val rows = 9
-        for (i in 0 until rows) {
-            // Позиция ряда 0..1 с учётом фазы — ряды непрерывно
-            // «выезжают» из горизонта вниз.
-            val p = ((i + phase) / rows).coerceIn(0f, 1f)
-
-            // Перспектива: ближние ряды расходятся быстрее дальних.
-            // Степень 2.6 подобрана на глаз под пропорции карточки —
-            // при линейном распределении сетка выглядит плоской.
-            val k = p.pow(2.6f)
-            val y = horizon + depth * k
-
-            // Дальние ряды бледнее: имитация тумана даёт глубину
-            // и прячет момент появления ряда на горизонте.
-            val alpha = (k * 0.55f).coerceIn(0f, 0.55f)
-            if (alpha < 0.02f) continue
-
-            // Поперечная линия
-            val halfWidth = w * (0.08f + k * 0.62f)
-            drawLine(
-                color = color.copy(alpha = alpha),
-                start = Offset(w / 2f - halfWidth, y),
-                end = Offset(w / 2f + halfWidth, y),
-                strokeWidth = 1f + k * 2.2f
-            )
-        }
-
-        // Продольные линии, сходящиеся к точке схода. Они не двигаются —
-        // движение целиком на поперечных, иначе рябит в глазах.
-        val vanishX = w / 2f
-        for (lane in -3..3) {
-            if (lane == 0) continue
-            val bottomX = vanishX + lane * w * 0.20f
-            drawLine(
-                color = color.copy(alpha = 0.16f),
-                start = Offset(vanishX + lane * w * 0.012f, horizon),
-                end = Offset(bottomX, h),
-                strokeWidth = 1.2f
-            )
-        }
-    }
+    Image(
+        painter = painterResource(frames[index]),
+        contentDescription = null,
+        contentScale = ContentScale.FillBounds,
+        colorFilter = tint,
+        modifier = modifier.fillMaxWidth()
+    )
 }
+
+/**
+ * Кадры цикла. Держим списком, а не собираем имя строкой:
+ * getIdentifier по имени работает через рефлексию, и R8 в релизе
+ * вырезает такие ресурсы как неиспользуемые.
+ */
+private val FRAMES = intArrayOf(
+    R.drawable.road_00, R.drawable.road_01, R.drawable.road_02,
+    R.drawable.road_03, R.drawable.road_04, R.drawable.road_05,
+    R.drawable.road_06, R.drawable.road_07, R.drawable.road_08,
+    R.drawable.road_09, R.drawable.road_10, R.drawable.road_11,
+    R.drawable.road_12, R.drawable.road_13, R.drawable.road_14,
+    R.drawable.road_15, R.drawable.road_16, R.drawable.road_17,
+    R.drawable.road_18, R.drawable.road_19, R.drawable.road_20,
+    R.drawable.road_21, R.drawable.road_22, R.drawable.road_23,
+    R.drawable.road_24, R.drawable.road_25, R.drawable.road_26,
+    R.drawable.road_27, R.drawable.road_28, R.drawable.road_29
+)

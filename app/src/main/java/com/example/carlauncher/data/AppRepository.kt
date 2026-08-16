@@ -146,6 +146,8 @@ object AppRepository {
     // --- Кандидаты для типовых китайских головных устройств ---
 
     val RADIO = listOf(
+        // Производитель этого ГУ — Reglink: имена достаны из прошивки
+        "com.reglink.apps.radio", "com.reglink.radio",
         "com.hzbhd.radio", "com.android.fmradio", "com.tw.radio", "com.ts.fmradio",
         "com.zhuoyi.fmradio", "com.microntek.radio", "com.hct.radio", "com.autoradio.fm",
         "com.syu.radio", "com.hsae.radio"
@@ -193,6 +195,7 @@ object AppRepository {
     )
 
     val CAR_INFO = listOf(
+        "com.reglink.vehicleinfo", "com.reglink.apps.vehicleinformation",
         "com.hzbhd.carinfo", "com.microntek.carinfo", "com.syu.canbus",
         "com.ts.carsetting", "com.android.car.settings"
     )
@@ -226,6 +229,8 @@ object AppRepository {
      * список длинный, а вдогонку идёт поиск по подписи под иконкой.
      */
     val CARPLAY = listOf(
+        // В прошивке есть и HiCar: com.reglink.huaweihicar.IHiCarBinder
+        "com.reglink.huaweihicar", "com.reglink.carplay", "com.reglink.apps.carplay",
         "com.baidu.carlife", "net.easyconn", "com.zjinnova.zlink",
         "com.carbit.link", "com.autoequips.carplay", "com.carlink.wireless",
         "com.hzbhd.carplay", "com.syu.carplay", "com.ts.carplay",
