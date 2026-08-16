@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Grain
 import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Mic
@@ -199,6 +200,29 @@ fun TopStatusBar(
                     )
             )
             PhoneBattery()
+        }
+
+        // Питание автомобиля. Напряжение показываем, только если MCU
+        // его действительно прислал: выдуманное число хуже пустого места.
+        // Ниже 11.8 В на заглушенном моторе — повод зарядить аккумулятор,
+        // поэтому такие значения красим тревожным цветом.
+        val power by com.example.carlauncher.data.CarPower.rememberPower()
+        val volts = power.second
+        if (volts > 0f) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.BatteryChargingFull,
+                    contentDescription = "Аккумулятор",
+                    tint = if (volts < 11.8f) Color(0xFFFF8A65) else TextPrimary,
+                    modifier = Modifier.size(19.dp)
+                )
+                Text(
+                    text = "%.1fV".format(volts),
+                    color = if (volts < 11.8f) Color(0xFFFF8A65) else TextPrimary,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(start = 3.dp)
+                )
+            }
         }
 
         // Реальная погода. Если сети или геолокации нет — блок скрыт.

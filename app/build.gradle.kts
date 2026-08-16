@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.carlauncher"
         minSdk = 23          // Android 6.0 — типовые китайские ГУ
         targetSdk = 30       // намеренно 30: на targetSdk 31+ старые ГУ ломают часть intent'ов
-        versionCode = 19
-        versionName = "2.8"
+        versionCode = 20
+        versionName = "2.9"
 
         ndk {
             // Головные устройства все на ARM. Библиотеки Vosk для x86
@@ -50,10 +50,17 @@ android {
         create("standard") {
             dimension = "privilege"
             signingConfig = signingConfigs.getByName("release")
+            // Имя файла в релизе. Обновление обязано скачать APK
+            // с той же подписью, иначе Android откажет в установке:
+            // раньше выбор шёл по слову "system" в имени, а после
+            // переименования файлов это условие перестало совпадать
+            // и качался первый попавшийся.
+            buildConfigField("String", "UPDATE_ASSET", "\"KINGSAID.apk\"")
         }
         create("system") {
             dimension = "privilege"
             signingConfig = signingConfigs.getByName("platform")
+            buildConfigField("String", "UPDATE_ASSET", "\"KINGSAID-SYSTEM.apk\"")
         }
         // Прошивка ГУ собрана с тегом test-keys (видно в AIDA64:
         // «alps/full_k62v1_64_bsp/...:user/test-keys»). Это НЕ ключ platform:
@@ -67,6 +74,7 @@ android {
         create("aosp") {
             dimension = "privilege"
             signingConfig = signingConfigs.getByName("release")
+            buildConfigField("String", "UPDATE_ASSET", "\"KINGSAID-TESTKEY.apk\"")
         }
         // То же самое, но с sharedUserId. Без него VirtualDisplay
         // не принимает чужую активность даже при выданном
@@ -76,6 +84,7 @@ android {
         create("aospuid") {
             dimension = "privilege"
             signingConfig = signingConfigs.getByName("release")
+            buildConfigField("String", "UPDATE_ASSET", "\"KINGSAID-PIP.apk\"")
         }
     }
 
@@ -108,6 +117,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

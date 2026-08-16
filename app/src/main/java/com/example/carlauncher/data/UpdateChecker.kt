@@ -6,6 +6,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.util.Log
+import com.example.carlauncher.BuildConfig
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -73,9 +74,16 @@ object UpdateChecker {
             val tag = json.optString("tag_name").removePrefix("v").trim()
             if (tag.isBlank()) return@withContext null
 
-            // Системную сборку обновляем системной, обычную — обычной:
-            // подписи разные, иначе установка не пройдёт.
-            val wantSystem = SystemPrivileges.isSystemUid
+            // Качаем APK ровно той сборки, что установлена: у трёх наших
+            // вариантов разные подписи, и чужой Android откажется ставить
+            // поверх с сообщением «приложение не установлено».
+            //
+            // Имя файла зашито в сборку через BuildConfig. Раньше выбор
+            // шёл по слову "system" в имени файла, но после переименования
+            // в KINGSAID-PIP и KINGSAID-TESTKEY условие перестало совпадать
+            // ни с чем, и скачивался первый попавшийся APK из списка —
+            // отсюда и ошибка установки.
+            val wantName = BuildConfig.UPDATE_ASSET.lowercase()
             val assets = json.optJSONArray("assets") ?: return@withContext null
 
             var url = ""
@@ -83,15 +91,18 @@ object UpdateChecker {
             for (i in 0 until assets.length()) {
                 val a = assets.getJSONObject(i)
                 val name = a.optString("name").lowercase()
-                if (!name.endsWith(".apk")) continue
-                val isSystemFile = name.contains("system")
-                if (isSystemFile == wantSystem) {
+                if (name == wantName) {
                     url = a.optString("browser_download_url")
                     size = a.optLong("size")
                     break
                 }
             }
-            if (url.isBlank()) return@withContext null
+            // Своего файла в релизе нет — лучше промолчать, чем поставить
+            // чужую подпись и получить отказ установщика.
+            if (url.isBlank()) {
+                Log.w(TAG, "В релизе нет $wantName")
+                return@withContext null
+            }
 
             Release(
                 version = tag,
