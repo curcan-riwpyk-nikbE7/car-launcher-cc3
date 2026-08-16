@@ -95,6 +95,25 @@ object AppRepository {
      * Пробует по очереди список кандидатов-пакетов, затем системный intent.
      * Так покрываются разные прошивки магнитол, где радио/BT называются по-разному.
      */
+    /**
+     * Есть ли на устройстве хоть одно приложение из списка.
+     *
+     * Нужно, чтобы не рисовать кнопку, которая всё равно ничего
+     * не откроет: мёртвая кнопка хуже, чем её отсутствие.
+     */
+    fun findFirstInstalled(
+        context: Context,
+        candidates: List<String>,
+        labels: List<String> = emptyList()
+    ): String? {
+        val pm = context.packageManager
+        for (pkg in candidates) {
+            if (runCatching { pm.getLaunchIntentForPackage(pkg) }.getOrNull() != null) return pkg
+        }
+        if (labels.isNotEmpty()) return findByLabel(context, *labels.toTypedArray())
+        return null
+    }
+
     fun launchFirstAvailable(
         context: Context,
         candidates: List<String>,
@@ -195,6 +214,27 @@ object AppRepository {
         "Bluetooth Музыка", "BTMusic", "A2DP"
     )
     val VIDEO_LABELS = listOf("YouTube", "Ютуб", "Видео", "Video", "Галерея", "Gallery")
+
+    /**
+     * Проводное зеркалирование телефона.
+     *
+     * В прошивке этого ГУ есть системные сервисы carplay_receiver
+     * и com.baidu.carlife — видно в init.rc. Значит железо умеет
+     * принимать iPhone по кабелю, просто лаунчер об этом не знал.
+     *
+     * Имя приложения-обёртки у каждого производителя своё, поэтому
+     * список длинный, а вдогонку идёт поиск по подписи под иконкой.
+     */
+    val CARPLAY = listOf(
+        "com.baidu.carlife", "net.easyconn", "com.zjinnova.zlink",
+        "com.carbit.link", "com.autoequips.carplay", "com.carlink.wireless",
+        "com.hzbhd.carplay", "com.syu.carplay", "com.ts.carplay",
+        "com.mirror.carplay", "cn.wch.carplay", "com.autolink.carplay"
+    )
+    val CARPLAY_LABELS = listOf(
+        "CarPlay", "Carplay", "CarLife", "Carlife", "ZLink", "EasyConn",
+        "AutoLink", "AutoKit", "Зеркало", "Mirror", "Phone Link"
+    )
     val CLIMATE_LABELS = listOf("AC", "Климат", "Climate", "Кондиционер", "Air")
     val CAR_INFO_LABELS = listOf("Car Info", "Car Setup", "Автомобиль", "Car", "Инфо")
     val DSP_LABELS = listOf("DSP", "Эквалайзер", "Equalizer", "EQ")
@@ -211,6 +251,7 @@ object AppRepository {
         CLIMATE -> CLIMATE_LABELS
         CAR_INFO -> CAR_INFO_LABELS
         NAVIGATION -> listOf("Навигатор", "Карты", "Maps", "Navi")
+        CARPLAY -> CARPLAY_LABELS
         else -> emptyList()
     }
 

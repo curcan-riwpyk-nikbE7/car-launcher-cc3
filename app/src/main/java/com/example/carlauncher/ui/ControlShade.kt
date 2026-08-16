@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Brightness6
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.PhoneIphone
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.TabletMac
 import androidx.compose.material.icons.rounded.Wifi
@@ -238,6 +239,17 @@ private fun ShadePanel(
         val themeTitle = remember(ThemeStore.current.value) {
             themeById(ThemeStore.current.value).title
         }
+        // Кнопку зеркалирования показываем только если приложение реально
+        // установлено. В прошивке этого ГУ есть сервисы carplay_receiver
+        // и com.baidu.carlife, но обёртка ставится не на всех сборках —
+        // мёртвая кнопка хуже, чем её отсутствие.
+        val hasCarPlay = remember {
+            com.example.carlauncher.data.AppRepository.findFirstInstalled(
+                context,
+                com.example.carlauncher.data.AppRepository.CARPLAY,
+                com.example.carlauncher.data.AppRepository.CARPLAY_LABELS
+            ) != null
+        }
 
         Row(
             modifier = Modifier
@@ -277,6 +289,17 @@ private fun ShadePanel(
 
             ShadeButton(Icons.AutoMirrored.Rounded.VolumeOff, "Без звука", muted) {
                 QuickControls.toggleMute(context)
+            }
+
+            if (hasCarPlay) {
+                ShadeButton(Icons.Rounded.PhoneIphone, "Телефон", false) {
+                    onDismiss()
+                    com.example.carlauncher.data.AppRepository.launchFirstAvailable(
+                        context,
+                        com.example.carlauncher.data.AppRepository.CARPLAY,
+                        errorText = "Приложение зеркалирования не найдено"
+                    )
+                }
             }
         }
 
