@@ -78,7 +78,7 @@
     <string name="apps_not_found">Приложения не найдены</string>
 
     <!-- Баннер -->
-    <string name="setup_title">Сделайте Car Launcher главным экраном</string>
+    <string name="setup_title">Сделайте KINGSAID главным экраном</string>
     <string name="setup_subtitle">Иначе кнопка «Домой» будет открывать старый лаунчер</string>
     <string name="setup_action">Назначить</string>
 </resources>

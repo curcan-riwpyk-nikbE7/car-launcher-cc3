@@ -69,7 +69,7 @@
     <string name="nothing_found">Nothing found</string>
     <string name="apps_not_found">No apps found</string>
 
-    <string name="setup_title">Make Car Launcher your home screen</string>
+    <string name="setup_title">Make KINGSAID your home screen</string>
     <string name="setup_subtitle">Otherwise Home will open the old launcher</string>
     <string name="setup_action">Set as default</string>
 </resources>

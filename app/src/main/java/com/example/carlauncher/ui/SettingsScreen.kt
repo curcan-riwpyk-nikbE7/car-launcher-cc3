@@ -935,10 +935,18 @@ private fun SystemTab(
             )
         }
         item {
+            // Версия читается из пакета, а не пишется руками: строка
+            // «1.0» висела здесь начиная с первой сборки и врала
+            // пользователю на каждом обновлении.
+            val ctxAbout = LocalContext.current
+            val version = remember { UpdateChecker.currentVersion(ctxAbout) }
+            val build = remember {
+                com.example.carlauncher.data.BuildIdentity.current(ctxAbout).title
+            }
             SettingTile(
                 icon = Icons.Rounded.Info,
-                title = "Car Launcher",
-                subtitle = "Версия 1.0",
+                title = "KINGSAID",
+                subtitle = "Версия $version\n$build",
                 onClick = { },
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )

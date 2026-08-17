@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -141,7 +143,9 @@ fun AllAppsScreen(
                 }
             }
 
-            Box(modifier = Modifier.fillMaxSize().padding(top = 10.dp)) {
+            // BoxWithConstraints вместо Box: сетке нужна фактическая
+            // высота, чтобы посчитать, сколько рядов поместится.
+            BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(top = 10.dp)) {
                 when {
                     // Список ещё грузится — раньше был просто пустой экран
                     loading && apps.isEmpty() -> EmptyState(
@@ -160,15 +164,29 @@ fun AllAppsScreen(
                         subtitle = "По запросу «${query.trim()}» совпадений нет"
                     )
                     else -> {
-                        // Три ряда, страницы листаются вбок. Вертикальная
-                        // прокрутка на ходу неудобна: список уезжает от
-                        // тряски и палец теряет место. Страницы же всегда
-                        // встают на одну и ту же позицию.
+                        // Страницы листаются вбок. Вертикальная прокрутка
+                        // на ходу неудобна: список уезжает от тряски и
+                        // палец теряет место. Страницы же всегда встают
+                        // на одну и ту же позицию.
                         //
                         // Четыре колонки на 1280 — компромисс: пять делают
                         // плитку такой узкой, что длинные названия режутся
                         // на половине слова.
-                        val perPage = 12
+                        //
+                        // Число рядов раньше было жёстко задано тройкой,
+                        // и на экране оставалась пустая треть: константу
+                        // подбирали, когда сверху висела панель ГУ. Теперь
+                        // считаем от фактической высоты — сетка заполняет
+                        // всё, что есть, и на 55 приложений выходит три
+                        // страницы вместо пяти.
+                        val columns = 4
+                        val rows = with(LocalDensity.current) {
+                            // 88 dp — плитка (64 иконка + отступы),
+                            // 12 dp — промежуток между рядами.
+                            val rowHeight = 100.dp.toPx()
+                            (maxHeight.toPx() / rowHeight).toInt().coerceIn(3, 6)
+                        }
+                        val perPage = columns * rows
                         val pageCount = (filtered.size + perPage - 1) / perPage
                         val pagerState = rememberPagerState(
                             pageCount = { pageCount.coerceAtLeast(1) }

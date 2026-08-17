@@ -231,42 +231,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Полноэкранный режим и подсветка экрана.
+     *
+     * Сама работа с барами вынесена в ImmersiveMode: тот же режим
+     * нужен меню приложений и настройкам, а раньше эта логика жила
+     * только здесь — и остальные экраны открывались с панелью ГУ.
+     */
     private fun enableImmersiveMode() {
         if (SettingsStore.keepScreenOn.value) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
-        if (!SettingsStore.immersive.value) {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
-            runCatching {
-                androidx.core.view.WindowCompat
-                    .getInsetsController(window, window.decorView)
-                    .show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            }
-            return
-        }
-        // SYSTEM_UI_FLAG_FULLSCREEN прячет саму строку состояния.
-        // Без него LAYOUT_FULLSCREEN лишь разрешает рисовать под ней,
-        // а системная строка Android продолжает висеть сверху.
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            )
-
-        // На Android 11+ старые флаги игнорируются частью прошивок —
-        // дублируем через современный контроллер.
-        runCatching {
-            val c = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-            c.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            c.systemBarsBehavior =
-                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
+        com.example.carlauncher.data.ImmersiveMode.apply(this, SettingsStore.immersive.value)
     }
 }

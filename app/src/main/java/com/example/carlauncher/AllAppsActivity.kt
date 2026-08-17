@@ -45,9 +45,22 @@ class AllAppsActivity : ComponentActivity() {
     private var apps by mutableStateOf<List<AppInfo>>(emptyList())
     private var loading by mutableStateOf(true)
 
+    /**
+     * Система возвращает бары после диалогов выбора и системных окон,
+     * поэтому режим приходится назначать заново при каждом возврате.
+     */
+    override fun onResume() {
+        super.onResume()
+        com.example.carlauncher.data.ImmersiveMode.applyFromSettings(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeStore.init(this)
+        // Без этого поверх списка висит штатная панель ГУ и полоса
+        // навигации — вместе они съедают около трети экрана.
+        com.example.carlauncher.data.SettingsStore.init(this)
+        com.example.carlauncher.data.ImmersiveMode.applyFromSettings(this)
         setContent {
             val themeId by ThemeStore.current
             CarLauncherTheme(themeById(themeId)) {

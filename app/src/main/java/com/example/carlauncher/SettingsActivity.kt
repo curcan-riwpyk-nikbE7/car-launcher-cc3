@@ -54,6 +54,9 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ThemeStore.init(this)
         SettingsStore.init(this)
+        // Экран настроек открывается поверх главного и должен занимать
+        // дисплей так же целиком — иначе сверху выезжает панель ГУ.
+        com.example.carlauncher.data.ImmersiveMode.applyFromSettings(this)
         WallpaperStore.init(this)
 
         val store = ShortcutStore(this)
@@ -185,6 +188,8 @@ class SettingsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         notifAccess = MediaControl.hasNotificationAccess(this)
+        // Системные экраны разрешений возвращают бары — прячем снова
+        com.example.carlauncher.data.ImmersiveMode.applyFromSettings(this)
     }
 
     private fun loadApps() {
