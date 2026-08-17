@@ -35,12 +35,24 @@ object CarPower {
 
     private const val TAG = "CarPower"
 
-    /** Известные действия, которыми ГУ сообщают о смене ACC. */
+    /**
+     * Действия, которыми ГУ сообщают о смене питания.
+     *
+     * Первые четыре вычитаны прямо из образа /system этой прошивки,
+     * остальные — запасные для других головных устройств. Раньше
+     * список был собран по догадкам, и половина имён не существовала.
+     *
+     * DroidCarService — центральный сервис Reglink, через который
+     * проходят данные от MCU. Он рассылает наружу и старт, и готовность,
+     * поэтому слушаем оба: после инициализации значения уже доступны.
+     */
     private val ACC_ACTIONS = listOf(
         "com.reglink.action.acc_state_changed",
+        "com.reglink.action.DroidCarServiceInitCompleted",
+        "com.reglink.action.DroidCarServiceStarted",
+        "com.reglink.action.DroidCarService",
         "com.reglink.action.ACC_STATE_CHANGED",
         "com.reglink.action.VOLTAGE_CHANGED",
-        "com.reglink.action.acc_voltage_changed",
         "android.intent.action.ACC_STATE_CHANGED",
         "com.hzbhd.acc.state",
         "com.microntek.ACC_STATE",
@@ -205,11 +217,19 @@ object CarPower {
         return -1f to "нет данных"
     }
 
-    /** Напряжение из системных свойств. Имена у каждой прошивки свои. */
+    /**
+     * Напряжение из системных свойств.
+     *
+     * carinfo.BatteryVoltage и persist.acc.signal.status найдены в образе
+     * прошивки — это настоящие имена, которыми пользуется сервис Reglink.
+     * Остальные оставлены запасными: у других ГУ имена свои.
+     */
     fun voltageFromProps(): Float = runCatching {
         val cls = Class.forName("android.os.SystemProperties")
         val get = cls.getMethod("get", String::class.java, String::class.java)
         for (key in listOf(
+            "carinfo.BatteryVoltage",
+            "persist.acc.signal.status",
             "persist.sys.car.voltage", "sys.car.voltage",
             "persist.reglink.voltage", "sys.reglink.voltage",
             "persist.sys.acc.voltage", "persist.vendor.voltage",

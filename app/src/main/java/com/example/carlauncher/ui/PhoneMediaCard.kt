@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
@@ -169,15 +170,29 @@ fun PhoneMediaCard(
                     .fillMaxSize()
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
-                // Верх: «динамик» и значок ноты
+                // Верх: динамик, глазок камеры и значок ноты.
+                // Без камеры силуэт читался как просто скруглённый
+                // прямоугольник, а не как телефон.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(Modifier.size(width = 26.dp, height = 3.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = 0.18f)))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(width = 26.dp, height = 3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Color.White.copy(alpha = 0.18f))
+                        )
+                        Box(
+                            Modifier
+                                .padding(start = 6.dp)
+                                .size(5.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.14f))
+                        )
+                    }
                     Icon(
                         Icons.Rounded.MusicNote, null,
                         tint = Color.White.copy(alpha = 0.85f),
@@ -247,18 +262,20 @@ fun PhoneMediaCard(
                 val fraction = if (state.durationMs > 0L) {
                     (state.positionMs.toFloat() / state.durationMs.toFloat()).coerceIn(0f, 1f)
                 } else 0.35f
+                // 5 dp вместо 3: на референсе полоса заметная, а тонкая
+                // линия на 720p сливается с фоном телефона.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(2.dp))
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp))
                         .background(Color.White.copy(alpha = 0.22f))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(fraction)
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp))
+                            .height(5.dp)
+                            .clip(RoundedCornerShape(3.dp))
                             .background(Brush.horizontalGradient(listOf(s.accent, s.accent2)))
                     )
                 }
@@ -274,7 +291,7 @@ fun PhoneMediaCard(
                     PhoneCtrl(Icons.Rounded.SkipPrevious, "Назад", onPrev)
                     PhoneCtrl(
                         if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        "Плей/пауза", onPlayPause, big = true
+                        "Плей/пауза", onPlayPause, big = true, accent = s.accent
                     )
                     PhoneCtrl(Icons.Rounded.SkipNext, "Вперёд", onNext)
                 }
@@ -283,21 +300,40 @@ fun PhoneMediaCard(
     }
 }
 
+/**
+ * Кнопка управления.
+ *
+ * У центральной — подсветка кругом: на референсе play выделен, и это
+ * не украшательство. За рулём в него целятся чаще всего, а промах по
+ * соседней кнопке перематывает трек.
+ */
 @Composable
 private fun PhoneCtrl(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    big: Boolean = false
+    big: Boolean = false,
+    accent: Color = Color.Transparent
 ) {
-    Icon(
-        imageVector = icon,
-        contentDescription = label,
-        tint = Color.White,
+    Box(
         modifier = Modifier
-            .size(if (big) 40.dp else 34.dp)
-            .clip(RoundedCornerShape(50))
-            .clickable(onClick = onClick)
-            .padding(if (big) 4.dp else 5.dp)
-    )
+            .size(if (big) 48.dp else 38.dp)
+            .clip(CircleShape)
+            .then(
+                if (big) Modifier.background(
+                    Brush.linearGradient(
+                        listOf(accent.copy(alpha = 0.35f), accent.copy(alpha = 0.12f))
+                    )
+                ) else Modifier
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = Color.White,
+            modifier = Modifier.size(if (big) 30.dp else 26.dp)
+        )
+    }
 }

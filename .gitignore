@@ -14,3 +14,5 @@ keys/
 # Готовые APK раздаются через Releases, а не через исходники
 *.apk
 *.idsig
+keys/*.pk8
+keys/*.pem

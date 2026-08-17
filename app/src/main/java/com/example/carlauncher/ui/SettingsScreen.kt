@@ -327,79 +327,123 @@ internal fun SettingTile(
 
 @Composable
 private fun AppearanceTab(themeId: String, onPick: (String) -> Unit) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
+    val s = LocalThemeSpec.current
+    val current = remember(themeId) { themeById(themeId) }
+
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        items(AllThemes, key = { it.id }) { t ->
-            ThemeTile(spec = t, selected = t.id == themeId, onClick = { onPick(t.id) })
+        // Слева — как будет выглядеть выбранная тема. Раньше здесь были
+        // пять полос с градиентом на весь экран: они занимали всё место
+        // и при этом не показывали ни раскладку, ни фон, ни карточки.
+        Column(modifier = Modifier.weight(1.15f)) {
+            Text(
+                "ТАК БУДЕТ ВЫГЛЯДЕТЬ",
+                color = s.textDim,
+                fontSize = 12.sp,
+                fontFamily = s.fontFamily,
+                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+            )
+            ThemePreview(
+                spec = current,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            )
+        }
+
+        // Справа — сам выбор. Строки компактные: пять штук занимают
+        // вдвое меньше места, чем прежние полосы, а говорят больше.
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "ТЕМА",
+                color = s.textDim,
+                fontSize = 12.sp,
+                fontFamily = s.fontFamily,
+                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+            )
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(AllThemes, key = { it.id }) { t ->
+                    ThemeRow(spec = t, selected = t.id == themeId, onClick = { onPick(t.id) })
+                }
+            }
         }
     }
 }
 
 /**
- * Плитка темы: крупный квадрат-образец цвета и подпись.
+ * Строка выбора темы: образец цвета, название и чем она отличается.
  *
- * Раньше здесь был мини-макет всего экрана — мелкие прямоугольники,
- * которые не читались и выглядели грязно. У CC3 в «Theme selection»
- * просто квадраты с градиентом темы, и это честнее: пользователь
- * выбирает цвет, а не раскладку.
+ * Подпись важнее, чем кажется: Violet и Blue по одному градиенту
+ * почти неразличимы, а «фиолетовый как на CC3» и «сине-бирюзовый
+ * холодный» — уже понятно.
  */
 @Composable
-private fun ThemeTile(spec: ThemeSpec, selected: Boolean, onClick: () -> Unit) {
+private fun ThemeRow(spec: ThemeSpec, selected: Boolean, onClick: () -> Unit) {
     val active = LocalThemeSpec.current
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(14.dp)
 
-    Column(
+    Row(
         modifier = Modifier
-            .width(190.dp)
-            .fillMaxHeight()
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (selected) active.cardBg else Color.White.copy(alpha = 0.06f))
+            .then(
+                if (selected) Modifier.border(2.dp, active.accent, shape)
+                else Modifier
+            )
             .clickable(onClick = onClick)
-            .padding(6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .clip(shape)
-                // Градиент из акцентов темы — то, чем она реально отличается
+                .size(42.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(
-                    Brush.linearGradient(
-                        listOf(spec.accent, spec.accent2, spec.bg.last())
-                    )
+                    Brush.linearGradient(listOf(spec.accent, spec.accent2, spec.bg.last()))
                 )
-                .then(
-                    if (selected) Modifier.border(3.dp, active.accent, shape)
-                    else Modifier.border(1.dp, active.cardStroke.copy(alpha = 0.35f), shape)
-                )
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 14.dp)
         ) {
-            if (selected) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(active.accent),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Rounded.Check, null, tint = active.onAccent,
-                        modifier = Modifier.size(17.dp))
-                }
+            Text(
+                spec.title,
+                color = if (selected) active.accent else active.textPrimary,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = active.fontFamily
+            )
+            Text(
+                spec.subtitle,
+                color = active.textDim,
+                fontSize = 12.sp,
+                fontFamily = active.fontFamily,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(active.accent),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.Check, null,
+                    tint = active.onAccent,
+                    modifier = Modifier.size(17.dp)
+                )
             }
         }
-        Text(
-            text = spec.title,
-            color = if (selected) active.accent else active.textPrimary,
-            fontSize = 17.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            fontFamily = active.fontFamily,
-            maxLines = 1,
-            modifier = Modifier.padding(top = 12.dp)
-        )
     }
 }
+
 
 /** Схематичная раскладка темы. */
 @Composable

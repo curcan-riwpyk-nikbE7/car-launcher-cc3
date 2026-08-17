@@ -145,9 +145,13 @@ object AppRepository {
 
     // --- Кандидаты для типовых китайских головных устройств ---
 
+    // Имена Reglink идут первыми не для красоты: они вычитаны прямо
+    // из образа /system этой прошивки, а не собраны по форумам. Всё,
+    // что ниже, — запасные варианты для других головных устройств.
+
     val RADIO = listOf(
-        // Производитель этого ГУ — Reglink: имена достаны из прошивки
-        "com.reglink.apps.radio", "com.reglink.radio",
+        "com.reglink.apps.mtkradio", "com.reglink.apps.radio",
+        "com.reglink.apps.sprdradio", "com.reglink.radio",
         "com.hzbhd.radio", "com.android.fmradio", "com.tw.radio", "com.ts.fmradio",
         "com.zhuoyi.fmradio", "com.microntek.radio", "com.hct.radio", "com.autoradio.fm",
         "com.syu.radio", "com.hsae.radio"
@@ -166,8 +170,20 @@ object AppRepository {
     )
 
     val PHONE = listOf(
+        "com.reglink.apps.bluetooth", "com.reglink.mtkbluetooth",
         "com.hzbhd.bt", "com.microntek.bluetooth", "com.syu.bt", "com.ts.bluetooth",
         "com.android.dialer", "com.google.android.dialer"
+    )
+
+    /**
+     * Приложение BT-музыки, которое надо поднять, чтобы телефон
+     * зазвучал: пока оно не запущено, аудиоканал закрыт и музыка
+     * играет «в никуда».
+     */
+    val BT_MUSIC = listOf(
+        "com.reglink.apps.btmusic", "com.reglink.apps.bluetooth",
+        "com.reglink.mtkbluetooth", "com.reglink.bluetoothservice",
+        "com.hzbhd.btmusic", "com.microntek.bluetooth", "com.syu.bt"
     )
 
     /**

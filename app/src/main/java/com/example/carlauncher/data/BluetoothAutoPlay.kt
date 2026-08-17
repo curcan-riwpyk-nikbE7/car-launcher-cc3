@@ -128,15 +128,13 @@ object BtMusicStarter {
             if (AppRepository.launchPackage(context, saved)) return true
         }
 
-        val candidates = listOf(
-            // Первым — реальное имя из прошивки этого ГУ. Производитель
-            // Reglink, поэтому прежний список из hzbhd и syu промахивался,
-            // и приложение приходилось открывать руками.
-            "com.reglink.apps.btmusic", "com.reglink.btmusic",
-            "com.hzbhd.btmusic", "com.syu.btmusic", "com.ts.btmusic",
-            "com.android.bluetooth.music", "com.hzbhd.bt", "com.syu.bt",
-            "com.txznet.music", "com.hct.btmusic", "com.autochips.btmusic",
-            "com.fyt.bt", "com.fyt.btmusic", "com.xy.btmusic"
+        // Список один на весь проект — в AppRepository.BT_MUSIC. Раньше
+        // он дублировался здесь, и правка в одном месте не доезжала
+        // до второго.
+        val candidates = AppRepository.BT_MUSIC + listOf(
+            "com.reglink.btmusic", "com.syu.btmusic", "com.ts.btmusic",
+            "com.android.bluetooth.music", "com.txznet.music", "com.hct.btmusic",
+            "com.autochips.btmusic", "com.fyt.bt", "com.fyt.btmusic", "com.xy.btmusic"
         )
         for (pkg in candidates) {
             if (AppRepository.launchPackage(context, pkg)) return true
