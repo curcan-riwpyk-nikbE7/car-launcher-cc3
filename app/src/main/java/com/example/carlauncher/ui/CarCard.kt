@@ -86,9 +86,13 @@ fun CarCard(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(s.cardCorner))
-            .background(s.carCardBg)
-            .border(s.strokeWidth, s.cardStroke, RoundedCornerShape(s.cardCorner))
+            .cardDepth(
+                corner = s.cardCorner,
+                accent = s.accent,
+                background = s.carCardBg,
+                stroke = s.cardStroke,
+                strokeWidth = s.strokeWidth
+            )
             .combinedClickable(
                 onClick = { },
                 onLongClick = {
@@ -158,6 +162,29 @@ fun CarCard(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .fillMaxHeight(0.52f)
+                )
+            }
+
+            // Зарево над линией горизонта. На картинке дорога уходит
+            // в темноту резким срезом; мягкий свет над горизонтом
+            // прячет этот стык и добавляет глубины — так же сделано
+            // на референсных снимках CC3.
+            if (s.carGridImage) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.34f)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    s.accent2.copy(alpha = 0.10f),
+                                    s.accent.copy(alpha = 0.16f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
             }
 

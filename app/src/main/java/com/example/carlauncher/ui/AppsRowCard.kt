@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -51,9 +52,13 @@ fun AppsRowCard(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(CardCorner))
-            .background(CardBg)
-            .border(CardStrokeWidth, CardStroke, RoundedCornerShape(CardCorner))
+            .cardDepth(
+                corner = CardCorner,
+                accent = LocalThemeSpec.current.accent,
+                background = CardBg,
+                stroke = CardStroke,
+                strokeWidth = CardStrokeWidth
+            )
             .padding(horizontal = dimens().screenPadding, vertical = 6.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -91,11 +96,22 @@ fun AppsRowCard(
                             )
                             .padding(vertical = 4.dp)
                     ) {
+                        // Подложка градиентная, а не плоская заливка:
+                        // на референсе под иконками мягкое свечение,
+                        // из-за которого они не выглядят наклеенными
+                        // на карточку.
                         Box(
                             modifier = Modifier
                                 .size(dimens().appIcon)
                                 .clip(RoundedCornerShape(IconCorner))
-                                .background(Color.White.copy(alpha = 0.05f)),
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.10f),
+                                            Color.White.copy(alpha = 0.03f)
+                                        )
+                                    )
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             if (app != null) {
