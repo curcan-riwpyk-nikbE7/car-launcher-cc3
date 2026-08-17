@@ -89,6 +89,58 @@ object QuickControls {
      * Панель появилась в Android 10. Если её нет — открываем обычные
      * настройки Wi-Fi.
      */
+    /**
+     * Пробует включить или выключить Wi-Fi напрямую.
+     *
+     * С Android 10 setWifiEnabled закрыт для обычных приложений —
+     * возвращает false и ничего не делает. Но сборке, подписанной
+     * ключом платформы, система его оставляет: она считает такое
+     * приложение своим.
+     *
+     * @return false, если прямой путь недоступен — тогда остаётся
+     *   открыть системную панель
+     */
+    fun toggleWifi(context: Context): Boolean = runCatching {
+        val wm = context.applicationContext
+            .getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val target = !wm.isWifiEnabled
+        @Suppress("DEPRECATION")
+        val ok = wm.setWifiEnabled(target)
+        // На Android 10+ метод молча возвращает false — проверяем
+        // по факту, а не по возвращённому значению.
+        ok && wm.isWifiEnabled == target
+    }.getOrDefault(false)
+
+    /**
+     * Мобильный интернет.
+     *
+     * Публичного способа переключить его нет ни в одной версии Android:
+     * setMobileDataEnabled удалён, а замена скрыта. Работает только
+     * через рефлексию и только с системными правами.
+     */
+    fun isMobileDataOn(context: Context): Boolean = runCatching {
+        Settings.Global.getInt(context.contentResolver, "mobile_data") == 1
+    }.getOrDefault(false)
+
+    fun toggleMobileData(context: Context): Boolean = runCatching {
+        val tm = context.applicationContext
+            .getSystemService(Context.TELEPHONY_SERVICE)
+        val target = !isMobileDataOn(context)
+        val m = tm.javaClass.getDeclaredMethod("setDataEnabled", Boolean::class.javaPrimitiveType)
+        m.isAccessible = true
+        m.invoke(tm, target)
+        isMobileDataOn(context) == target
+    }.getOrElse {
+        Log.w(TAG, "Мобильные данные переключить не удалось", it)
+        false
+    }
+
+    fun openMobileDataSettings(context: Context) {
+        if (!open(context, "android.settings.panel.action.MOBILE_DATA")) {
+            open(context, Settings.ACTION_DATA_ROAMING_SETTINGS)
+        }
+    }
+
     fun openInternetPanel(context: Context) {
         val opened = Build.VERSION.SDK_INT >= 29 &&
             open(context, "android.settings.panel.action.INTERNET_CONNECTIVITY")

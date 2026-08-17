@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.carlauncher.data.FreeformLauncher
 import com.example.carlauncher.data.SystemPrivileges
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 
 /**
  * Что именно система нам разрешила.
@@ -87,6 +90,14 @@ fun DiagnosticsScreen(onClose: () -> Unit) {
         )
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            // Подбор способа управления громкостью.
+            //
+            // Проверить успех программно нельзя: getStreamVolume вернёт
+            // изменившееся значение даже когда усилитель команду
+            // проигнорировал. Судить может только человек — на слух,
+            // поэтому кнопки и живут здесь.
+            item { VolumeTuner() }
+
             items(rows) { r ->
                 Row(
                     modifier = Modifier
@@ -217,4 +228,111 @@ private fun collect(context: Context): List<Row3> {
     )
 
     return out
+}
+
+/**
+ * Подбор рабочего способа управления громкостью.
+ *
+ * На этой магнитоле звук идёт через внешний усилитель, которым
+ * управляет MCU. Android держит свой уровень, ни к чему не
+ * подключённый: жест показывал полосу на экране, значение менялось,
+ * а громкость оставалась прежней.
+ *
+ * Какой обходной путь сработает — зависит от прошивки, и определить
+ * это изнутри невозможно. Поэтому способы перебираются вручную:
+ * нажал, послушал, отметил рабочий. Дальше лаунчер использует
+ * только его.
+ */
+@Composable
+private fun VolumeTuner() {
+    val s = LocalThemeSpec.current
+    val context = LocalContext.current
+    var current by remember {
+        mutableStateOf(com.example.carlauncher.data.VolumeBridge.method(context))
+    }
+    val fixed = remember { com.example.carlauncher.data.VolumeBridge.isFixed(context) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(s.cardBg)
+            .padding(16.dp)
+    ) {
+        Text(
+            "Громкость жестами",
+            color = s.textPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = s.fontFamily
+        )
+        Text(
+            if (fixed)
+                "Система сообщает: громкость управляется внешним трактом. " +
+                    "Обычный способ не сработает — выберите другой"
+            else
+                "Нажмите + или − и послушайте. Отметьте способ, от которого меняется звук",
+            color = s.textDim,
+            fontSize = 12.sp,
+            fontFamily = s.fontFamily,
+            modifier = Modifier.padding(top = 3.dp, bottom = 10.dp)
+        )
+
+        com.example.carlauncher.data.VolumeBridge.Method.entries
+            .filter { it != com.example.carlauncher.data.VolumeBridge.Method.Auto }
+            .forEach { m ->
+                val selected = current == m
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (selected) s.accent.copy(alpha = 0.18f)
+                            else Color.White.copy(alpha = 0.05f)
+                        )
+                        .clickable {
+                            com.example.carlauncher.data.VolumeBridge.setMethod(context, m)
+                            current = m
+                        }
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            m.title,
+                            color = if (selected) s.accent else s.textPrimary,
+                            fontSize = 14.sp,
+                            fontFamily = s.fontFamily
+                        )
+                        Text(
+                            m.hint,
+                            color = s.textDim,
+                            fontSize = 11.sp,
+                            fontFamily = s.fontFamily
+                        )
+                    }
+                    listOf(false, true).forEach { up ->
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.10f))
+                                .clickable {
+                                    com.example.carlauncher.data.VolumeBridge.test(context, m, up)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                if (up) "+" else "−",
+                                color = s.textPrimary,
+                                fontSize = 20.sp,
+                                fontFamily = s.fontFamily
+                            )
+                        }
+                    }
+                }
+            }
+    }
 }

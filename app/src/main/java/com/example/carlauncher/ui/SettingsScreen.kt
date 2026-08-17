@@ -86,6 +86,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.carlauncher.data.AppInfo
 import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material.icons.rounded.SignalCellularAlt
+import com.example.carlauncher.data.QuickControls
 
 /** Модель одной строки-ярлыка в настройках. */
 data class ShortcutRow(
@@ -753,6 +758,11 @@ private fun SystemTab(
     onReset: () -> Unit
 ) {
     var confirmReset by remember { mutableStateOf(false) }
+    var showNetwork by remember { mutableStateOf(false) }
+
+    if (showNetwork) {
+        NetworkDialog(onDismiss = { showNetwork = false })
+    }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
@@ -780,6 +790,37 @@ private fun SystemTab(
                 subtitle = "Почему карта не в карточке",
                 accentIcon = true,
                 onClick = onOpenDiagnostics,
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+        item {
+            // Сеть одной плиткой: Wi-Fi, Bluetooth и мобильный интернет.
+            // Раньше за ними приходилось уходить в системные настройки —
+            // а это чужой интерфейс поверх лаунчера, с мелкими строками,
+            // в которые на ходу не попасть.
+            //
+            // Каждый переключатель сначала пробует сделать дело сам
+            // и только при отказе открывает системный экран. Прямой путь
+            // работает в сборке с ключом платформы: Android считает её
+            // своей и не режет доступ, как обычным приложениям.
+            val ctxNet = LocalContext.current
+            var netRev by remember { mutableStateOf(0) }
+            val wifiOn = remember(netRev) { QuickControls.isWifiOn(ctxNet) }
+            val btOn = remember(netRev) { QuickControls.isBluetoothOn(ctxNet) }
+            val dataOn = remember(netRev) { QuickControls.isMobileDataOn(ctxNet) }
+
+            SettingTile(
+                icon = Icons.Rounded.Wifi,
+                title = "Сеть",
+                subtitle = buildString {
+                    append(if (wifiOn) "Wi-Fi вкл" else "Wi-Fi выкл")
+                    append(" · ")
+                    append(if (btOn) "Bluetooth вкл" else "Bluetooth выкл")
+                    append("\n")
+                    append(if (dataOn) "Мобильный интернет вкл" else "Мобильный интернет выкл")
+                },
+                accentIcon = wifiOn || btOn,
+                onClick = { showNetwork = true },
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
@@ -1012,4 +1053,149 @@ internal fun ThemedSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
             uncheckedBorderColor = Color.Transparent
         )
     )
+}
+
+/**
+ * Wi-Fi, Bluetooth и мобильный интернет в одном месте.
+ *
+ * Каждый переключатель сначала пробует сделать дело сам и только
+ * при отказе открывает системный экран. Это важно: Android с версии 10
+ * закрыл управление Wi-Fi для обычных приложений, а мобильный интернет
+ * не отдавал никогда. Но сборке, подписанной ключом платформы, система
+ * доверяет как своей — там всё три работают напрямую.
+ *
+ * Поэтому кнопка не обещает лишнего: если прямой путь не сработал,
+ * человек оказывается там, где точно сможет переключить руками.
+ */
+@Composable
+private fun NetworkDialog(onDismiss: () -> Unit) {
+    val s = LocalThemeSpec.current
+    val context = LocalContext.current
+    var revision by remember { mutableStateOf(0) }
+
+    val wifiOn = remember(revision) { QuickControls.isWifiOn(context) }
+    val btOn = remember(revision) { QuickControls.isBluetoothOn(context) }
+    val dataOn = remember(revision) { QuickControls.isMobileDataOn(context) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.72f))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.62f)
+                .clip(RoundedCornerShape(s.cardCorner))
+                .background(s.bg.first())
+                .clickable(enabled = false) {}
+                .padding(22.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Сеть",
+                    color = s.textPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = s.fontFamily
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    Icons.Rounded.Close, "Закрыть",
+                    tint = s.textSecondary,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .clickable(onClick = onDismiss)
+                        .padding(9.dp)
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            NetworkRow(
+                icon = Icons.Rounded.Wifi,
+                title = "Wi-Fi",
+                state = if (wifiOn) "включён" else "выключен",
+                on = wifiOn,
+                onToggle = {
+                    if (!QuickControls.toggleWifi(context)) {
+                        onDismiss()
+                        QuickControls.openInternetPanel(context)
+                    } else revision++
+                }
+            )
+            NetworkRow(
+                icon = Icons.Rounded.Bluetooth,
+                title = "Bluetooth",
+                state = if (btOn) "включён" else "выключен",
+                on = btOn,
+                onToggle = {
+                    if (!QuickControls.toggleBluetooth(context)) {
+                        onDismiss()
+                        QuickControls.openBluetoothSettings(context)
+                    } else revision++
+                }
+            )
+            NetworkRow(
+                icon = Icons.Rounded.SignalCellularAlt,
+                title = "Мобильный интернет",
+                state = if (dataOn) "включён" else "выключен",
+                on = dataOn,
+                onToggle = {
+                    if (!QuickControls.toggleMobileData(context)) {
+                        onDismiss()
+                        QuickControls.openMobileDataSettings(context)
+                    } else revision++
+                }
+            )
+
+            Text(
+                "Если переключатель не сработает, откроется системный экран: " +
+                    "часть настроек Android отдаёт только приложениям с подписью прошивки",
+                color = s.textDim,
+                fontSize = 12.sp,
+                fontFamily = s.fontFamily,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun NetworkRow(
+    icon: ImageVector,
+    title: String,
+    state: String,
+    on: Boolean,
+    onToggle: () -> Unit
+) {
+    val s = LocalThemeSpec.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(s.cardBg)
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon, null,
+            tint = if (on) s.accent else s.textDim,
+            modifier = Modifier.size(24.dp)
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 14.dp)
+        ) {
+            Text(title, color = s.textPrimary, fontSize = 16.sp, fontFamily = s.fontFamily)
+            Text(state, color = s.textDim, fontSize = 12.sp, fontFamily = s.fontFamily)
+        }
+        ThemedSwitch(on) { onToggle() }
+    }
 }

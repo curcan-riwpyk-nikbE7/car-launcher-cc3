@@ -142,121 +142,149 @@ fun TopStatusBar(
         }.getOrDefault(0)
     }
 
+    // Порядок и группировка сняты с оригинала CC3. Раньше все элементы
+    // шли одной строкой с равным зазором 14 dp — получался ровный,
+    // но безликий ряд. У штатного лаунчера они собраны в три группы,
+    // и между группами воздуха заметно больше, чем внутри: глаз
+    // читает «дата и погода», «связь», «громкость», а не восемь
+    // отдельных значков.
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Времени здесь нет намеренно: оно уже есть в панели слева,
-        // а у штатного лаунчера в этой строке только дата и значки.
-        //
+        // ── Группа 1: дата и погода ──
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Text(
+                text = fmt.format(now).replaceFirstChar { it.uppercase() },
+                color = TextPrimary,
+                fontSize = 16.sp
+            )
+
+            val weather by rememberWeather(weatherKey)
+            if (weather.valid) {
+                // Разделитель между датой и погодой — деталь оригинала.
+                // Без него дата и температура сливаются в одно число.
+                Box(
+                    modifier = Modifier
+                        .size(width = 1.dp, height = 14.dp)
+                        .background(TextSecondary.copy(alpha = 0.45f))
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = weatherIcon(weather.code, weather.isDay),
+                        contentDescription = weather.description,
+                        tint = weatherTint(weather.code),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "${weather.tempC}°",
+                        color = TextPrimary,
+                        // Крупнее прочих значков: на оригинале температура
+                        // читается с расстояния, это не второстепенная деталь.
+                        fontSize = 17.sp,
+                        modifier = Modifier.padding(start = 5.dp)
+                    )
+                }
+            }
+        }
+
+        // ── Группа 2: связь и питание ──
         // Значки кликабельные: раньше они были просто нарисованы, и по ним
         // нажимали впустую. Цвет показывает состояние — включённый модуль
         // белый, выключенный приглушённый.
-        Icon(
-            imageVector = if (wifiOn) Icons.Rounded.Wifi else Icons.Rounded.WifiOff,
-            contentDescription = "Wi-Fi",
-            tint = if (wifiOn) TextPrimary else TextSecondary,
-            modifier = Modifier
-                .size(22.dp)
-                .clip(CircleShape)
-                .clickable { QuickControls.openInternetPanel(context) }
-        )
-
-        Text(
-            text = fmt.format(now).replaceFirstChar { it.uppercase() },
-            color = TextPrimary,
-            fontSize = 16.sp
-        )
-
-        Icon(
-            Icons.Rounded.Mic, "Голосовой помощник",
-            tint = TextPrimary,
-            modifier = Modifier
-                .size(21.dp)
-                .clip(CircleShape)
-                .clickable { onVoice?.invoke() }
-        )
-
-        // Bluetooth и батарея стоят вплотную одной группой — так у штатного
-        // лаунчера. Между ними меньше зазор, чем между остальными значками,
-        // и читаются они как одно целое «связь с телефоном».
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
-                imageVector = if (btOn) Icons.Rounded.Bluetooth else Icons.Rounded.BluetoothDisabled,
-                contentDescription = "Bluetooth",
-                tint = if (btOn) TextPrimary else TextSecondary,
+                Icons.Rounded.Mic, "Голосовой помощник",
+                tint = TextPrimary,
                 modifier = Modifier
                     .size(21.dp)
                     .clip(CircleShape)
-                    .combinedClickable(
-                        // Короткое нажатие переключает, долгое открывает
-                        // настройки: на части прошивок программное
-                        // переключение закрыто, и нужен запасной путь.
-                        onClick = { if (!QuickControls.toggleBluetooth(context)) QuickControls.openBluetoothSettings(context) },
-                        onLongClick = { QuickControls.openBluetoothSettings(context) }
-                    )
+                    .clickable { onVoice?.invoke() }
             )
-            PhoneBattery()
-        }
 
-        // Питание автомобиля. Напряжение показываем, только если MCU
-        // его действительно прислал: выдуманное число хуже пустого места.
-        //
-        // Цвет говорит о состоянии сам, без подписей: зелёный — идёт
-        // зарядка от генератора, оранжевый — аккумулятор подсел,
-        // красный — пора заводить или ставить на зарядку.
-        val power by com.example.carlauncher.data.CarPower.rememberPower()
-        if (power.hasVoltage) {
-            val lvl = power.level
-            val tint = when (lvl) {
-                com.example.carlauncher.data.CarPower.Level.Charging -> Color(0xFF4CD07D)
-                com.example.carlauncher.data.CarPower.Level.Good -> TextPrimary
-                com.example.carlauncher.data.CarPower.Level.Low -> Color(0xFFFFB74D)
-                else -> Color(0xFFFF5252)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Bluetooth и заряд телефона стоят вплотную: между ними
+            // зазор меньше, чем между остальными значками, и читаются
+            // они как одно целое «связь с телефоном».
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 Icon(
-                    // Молния только когда генератор реально заряжает,
-                    // иначе обычная батарея — иначе значок врёт.
-                    if (lvl == com.example.carlauncher.data.CarPower.Level.Charging)
-                        Icons.Rounded.BatteryChargingFull
-                    else Icons.Rounded.BatteryFull,
-                    contentDescription = "Бортовая сеть",
-                    tint = tint,
-                    modifier = Modifier.size(19.dp)
+                    imageVector = if (btOn) Icons.Rounded.Bluetooth else Icons.Rounded.BluetoothDisabled,
+                    contentDescription = "Bluetooth",
+                    tint = if (btOn) TextPrimary else TextSecondary,
+                    modifier = Modifier
+                        .size(21.dp)
+                        .clip(CircleShape)
+                        .combinedClickable(
+                            // Короткое нажатие переключает, долгое открывает
+                            // настройки: на части прошивок программное
+                            // переключение закрыто, и нужен запасной путь.
+                            onClick = { if (!QuickControls.toggleBluetooth(context)) QuickControls.openBluetoothSettings(context) },
+                            onLongClick = { QuickControls.openBluetoothSettings(context) }
+                        )
                 )
-                Text(
-                    text = "%.1fV".format(power.volts),
-                    color = tint,
-                    fontSize = 15.sp,
-                    modifier = Modifier.padding(start = 3.dp)
-                )
+                PhoneBattery()
             }
+
+            // Напряжение бортовой сети. У CC3 его в панели нет, но на
+            // магнитоле оно полезнее погоды: сразу видно, заряжает ли
+            // генератор и не села ли батарея на стоянке.
+            //
+            // Показываем, только если MCU действительно прислал значение:
+            // выдуманное число хуже пустого места. Цвет говорит сам,
+            // без подписей.
+            val power by com.example.carlauncher.data.CarPower.rememberPower()
+            if (power.hasVoltage) {
+                val lvl = power.level
+                val tint = when (lvl) {
+                    com.example.carlauncher.data.CarPower.Level.Charging -> Color(0xFF4CD07D)
+                    com.example.carlauncher.data.CarPower.Level.Good -> TextPrimary
+                    com.example.carlauncher.data.CarPower.Level.Low -> Color(0xFFFFB74D)
+                    else -> Color(0xFFFF5252)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        // Молния только когда генератор реально заряжает,
+                        // иначе обычная батарея — иначе значок врёт.
+                        if (lvl == com.example.carlauncher.data.CarPower.Level.Charging)
+                            Icons.Rounded.BatteryChargingFull
+                        else Icons.Rounded.BatteryFull,
+                        contentDescription = "Бортовая сеть",
+                        tint = tint,
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Text(
+                        text = "%.1fV".format(power.volts),
+                        color = tint,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(start = 3.dp)
+                    )
+                }
+            }
+
+            // Wi-Fi ближе к правому краю, рядом с громкостью — так он
+            // стоит на оригинале. Раньше он был первым слева, из-за чего
+            // строка начиналась со значка, а не с даты.
+            Icon(
+                imageVector = if (wifiOn) Icons.Rounded.Wifi else Icons.Rounded.WifiOff,
+                contentDescription = "Wi-Fi",
+                tint = if (wifiOn) TextPrimary else TextSecondary,
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .clickable { QuickControls.openInternetPanel(context) }
+            )
         }
 
-        // Реальная погода. Если сети или геолокации нет — блок скрыт.
-        val weather by rememberWeather(weatherKey)
-        if (weather.valid) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = weatherIcon(weather.code, weather.isDay),
-                    contentDescription = weather.description,
-                    tint = weatherTint(weather.code),
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = "${weather.tempC}°",
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-        }
-
+        // ── Группа 3: громкость ──
         // Громкость и стрелка шторки — одна серая пилюля, как в оригинале.
         // Раньше это были два отдельных кружка с зазором: выглядело
         // разболтанно, а у штатного они слиты в единый блок, где стрелка

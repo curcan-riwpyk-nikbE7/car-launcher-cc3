@@ -242,27 +242,32 @@ object MediaControl {
      * @return новый уровень в диапазоне 0..1
      */
     fun stepVolume(context: Context, up: Boolean): Float {
-        val am = audio(context)
         val stream = activeStream(context)
-        val max = runCatching { am.getStreamMaxVolume(stream) }.getOrDefault(15).coerceAtLeast(1)
-        val before = runCatching { am.getStreamVolume(stream) }.getOrDefault(0)
 
-        runCatching {
-            am.adjustStreamVolume(
-                stream,
-                if (up) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
-                0
-            )
-        }
-
-        val after = runCatching { am.getStreamVolume(stream) }.getOrDefault(before)
-        if (after == before) {
-            // Шаг не прошёл — ставим значение сами.
-            val target = (before + if (up) 1 else -1).coerceIn(0, max)
-            if (target != before) {
-                runCatching { am.setStreamVolume(stream, target, 0) }
+        if (stream == AudioManager.STREAM_VOICE_CALL) {
+            // Во время разговора крутим именно громкость звонка,
+            // и здесь обычный путь работает: голос идёт через Android.
+            val am = audio(context)
+            val max = runCatching { am.getStreamMaxVolume(stream) }.getOrDefault(15).coerceAtLeast(1)
+            val before = runCatching { am.getStreamVolume(stream) }.getOrDefault(0)
+            runCatching {
+                am.adjustStreamVolume(
+                    stream,
+                    if (up) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
+                    0
+                )
             }
+            if (runCatching { am.getStreamVolume(stream) }.getOrDefault(before) == before) {
+                val target = (before + if (up) 1 else -1).coerceIn(0, max)
+                if (target != before) runCatching { am.setStreamVolume(stream, target, 0) }
+            }
+            return volumeLevel(context, stream)
         }
+
+        // Музыка идёт через внешний усилитель, которым управляет MCU:
+        // менять AudioManager бесполезно — значение поменяется, звук нет.
+        // Способ доставки команды выбирает VolumeBridge.
+        VolumeBridge.step(context, up)
         return volumeLevel(context, stream)
     }
 
