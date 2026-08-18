@@ -1,5 +1,6 @@
 package com.example.carlauncher.ui
 
+import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -244,25 +245,74 @@ fun ExpandedPlayer(
                             BigCtrl(Icons.Rounded.SkipNext, "Вперёд", 60.dp, false, onNext)
                         }
 
+                        // Ряд под кнопками: источник звука и переход
+                        // в штатное приложение.
+                        //
+                        // Для Bluetooth это не украшение. Пока приложение
+                        // BT-музыки не поднято, аудиоканал закрыт и телефон
+                        // играет «в никуда» — раньше приходилось искать его
+                        // руками в меню. Теперь кнопка рядом с плеером,
+                        // и подпись говорит, чей телефон подключён.
+                        val ctxPlayer = androidx.compose.ui.platform.LocalContext.current
+                        val btName = remember(state.isBluetooth) {
+                            if (state.isBluetooth) {
+                                com.example.carlauncher.data.BtDevice.connectedName(ctxPlayer)
+                            } else null
+                        }
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(top = 22.dp)
-                                .clip(RoundedCornerShape(s.buttonCorner))
-                                .clickable(onClick = onOpenApp)
-                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(top = 22.dp)
                         ) {
-                            Icon(
-                                Icons.Rounded.OpenInFull, null,
-                                tint = s.accent, modifier = Modifier.size(17.dp)
-                            )
-                            Text(
-                                text = stringResource(R.string.open_player),
-                                color = s.accent,
-                                fontSize = 14.sp,
-                                fontFamily = s.fontFamily,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
+                            if (state.isBluetooth) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(s.buttonCorner))
+                                        .background(Color.White.copy(alpha = 0.07f))
+                                        .clickable {
+                                            com.example.carlauncher.data.BtMusicStarter
+                                                .openBtMusicApp(ctxPlayer)
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Bluetooth, null,
+                                        tint = Color(0xFF4FC3F7),
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                    Text(
+                                        text = btName ?: "BT-музыка",
+                                        color = s.textPrimary,
+                                        fontSize = 14.sp,
+                                        fontFamily = s.fontFamily,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(s.buttonCorner))
+                                    .clickable(onClick = onOpenApp)
+                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.OpenInFull, null,
+                                    tint = s.accent, modifier = Modifier.size(17.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.open_player),
+                                    color = s.accent,
+                                    fontSize = 14.sp,
+                                    fontFamily = s.fontFamily,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
                         }
                     }
                 }

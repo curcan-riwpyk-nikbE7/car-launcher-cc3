@@ -217,6 +217,60 @@ object CarPower {
         return -1f to "нет данных"
     }
 
+    /** Имена, по которым ищем напряжение. Первые два — из образа прошивки. */
+    val PROP_KEYS = listOf(
+        "carinfo.BatteryVoltage",
+        "persist.acc.signal.status",
+        "persist.sys.car.voltage", "sys.car.voltage",
+        "persist.reglink.voltage", "sys.reglink.voltage",
+        "persist.sys.acc.voltage", "persist.vendor.voltage",
+        "sys.mcu.voltage", "persist.sys.mcu.voltage"
+    )
+
+    /** Файлы, куда драйверы иногда выкладывают напряжение. */
+    val SYSFS_PATHS = listOf(
+        "/sys/class/power_supply/battery/voltage_now",
+        "/sys/class/power_supply/ac/voltage_now",
+        "/sys/devices/platform/mcu/voltage",
+        "/sys/class/mcu/voltage",
+        "/proc/mcu_voltage"
+    )
+
+    /**
+     * Сырые значения всех источников — для экрана диагностики.
+     *
+     * Нужно, чтобы не гадать, почему вольты не показываются. Пустая
+     * строка означает, что свойства нет вовсе; непустая, но
+     * отброшенная — что значение есть, да не то, и надо править
+     * пересчёт, а не искать другое имя.
+     *
+     * @return пары «имя источника» → «что вернул»
+     */
+    fun rawSources(): List<Pair<String, String>> {
+        val out = mutableListOf<Pair<String, String>>()
+
+        runCatching {
+            val cls = Class.forName("android.os.SystemProperties")
+            val get = cls.getMethod("get", String::class.java, String::class.java)
+            PROP_KEYS.forEach { key ->
+                val v = runCatching { get.invoke(null, key, "") as? String }.getOrNull()
+                out += key to (v?.takeIf { it.isNotBlank() } ?: "—")
+            }
+        }.onFailure { out += "SystemProperties" to "недоступен" }
+
+        SYSFS_PATHS.forEach { path ->
+            val f = java.io.File(path)
+            val v = when {
+                !f.exists() -> "нет файла"
+                !f.canRead() -> "нет доступа"
+                else -> runCatching { f.readText().trim() }.getOrDefault("ошибка чтения")
+            }
+            out += path.substringAfterLast('/') to v
+        }
+
+        return out
+    }
+
     /**
      * Напряжение из системных свойств.
      *
@@ -227,14 +281,7 @@ object CarPower {
     fun voltageFromProps(): Float = runCatching {
         val cls = Class.forName("android.os.SystemProperties")
         val get = cls.getMethod("get", String::class.java, String::class.java)
-        for (key in listOf(
-            "carinfo.BatteryVoltage",
-            "persist.acc.signal.status",
-            "persist.sys.car.voltage", "sys.car.voltage",
-            "persist.reglink.voltage", "sys.reglink.voltage",
-            "persist.sys.acc.voltage", "persist.vendor.voltage",
-            "sys.mcu.voltage", "persist.sys.mcu.voltage"
-        )) {
+        for (key in PROP_KEYS) {
             val s = (get.invoke(null, key, "") as? String) ?: continue
             val v = s.toFloatOrNull() ?: continue
             val volt = normalize(v)
@@ -250,13 +297,7 @@ object CarPower {
      * Читаем без прав root — файлы открыты на чтение всем.
      */
     private fun voltageFromSysfs(): Float = runCatching {
-        for (path in listOf(
-            "/sys/class/power_supply/battery/voltage_now",
-            "/sys/class/power_supply/ac/voltage_now",
-            "/sys/devices/platform/mcu/voltage",
-            "/sys/class/mcu/voltage",
-            "/proc/mcu_voltage"
-        )) {
+        for (path in SYSFS_PATHS) {
             val f = java.io.File(path)
             if (!f.canRead()) continue
             val raw = f.readText().trim().toFloatOrNull() ?: continue

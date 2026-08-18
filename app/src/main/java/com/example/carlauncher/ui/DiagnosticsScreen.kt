@@ -1,5 +1,7 @@
 package com.example.carlauncher.ui
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.runtime.mutableIntStateOf
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -97,6 +99,14 @@ fun DiagnosticsScreen(onClose: () -> Unit) {
             // проигнорировал. Судить может только человек — на слух,
             // поэтому кнопки и живут здесь.
             item { VolumeTuner() }
+
+            // Сырые значения источников напряжения.
+            //
+            // Блок с вольтами в панели скрывается, когда данных нет —
+            // выдуманное число хуже пустого места. Но снаружи это выглядит
+            // одинаково и в случае «MCU молчит», и в случае «мы читаем
+            // не то имя». Здесь видно, какой именно источник что вернул.
+            item { VoltageSources() }
 
             items(rows) { r ->
                 Row(
@@ -334,5 +344,105 @@ private fun VolumeTuner() {
                     }
                 }
             }
+    }
+}
+
+/**
+ * Что вернул каждый источник напряжения.
+ *
+ * Без этого списка «вольты не показываются» — слишком общая жалоба.
+ * Причин три, и снаружи они выглядят одинаково: свойства нет вовсе,
+ * оно есть но пустое, или значение приходит в неожиданном виде
+ * и отбраковывается при пересчёте.
+ *
+ * Прочерк значит «источника нет». Любое другое содержимое — это
+ * то, что реально отдала система, без обработки. По нему сразу
+ * понятно, какое имя живое и как править разбор.
+ */
+@Composable
+private fun VoltageSources() {
+    val s = LocalThemeSpec.current
+    var expanded by remember { mutableStateOf(false) }
+    var revision by remember { mutableIntStateOf(0) }
+    val sources = remember(revision) { com.example.carlauncher.data.CarPower.rawSources() }
+    val alive = sources.count { it.second != "—" && it.second != "нет файла" }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(s.cardBg)
+            .clickable { expanded = !expanded }
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Источники напряжения",
+                    color = s.textPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = s.fontFamily
+                )
+                Text(
+                    if (alive > 0) "отвечают: $alive из ${sources.size} · нажмите, чтобы раскрыть"
+                    else "все молчат · нажмите, чтобы раскрыть",
+                    color = if (alive > 0) s.textDim else Color(0xFFFF8A65),
+                    fontSize = 12.sp,
+                    fontFamily = s.fontFamily
+                )
+            }
+            Text(
+                if (expanded) "свернуть" else "показать",
+                color = s.accent,
+                fontSize = 13.sp,
+                fontFamily = s.fontFamily
+            )
+        }
+
+        if (expanded) {
+            Column(modifier = Modifier.padding(top = 12.dp)) {
+                sources.forEach { (name, value) ->
+                    val empty = value == "—" || value == "нет файла" || value == "нет доступа"
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            name,
+                            color = if (empty) s.textDim else s.textPrimary,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            value,
+                            color = if (empty) s.textDim else Color(0xFF4CD07D),
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(top = 10.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(s.accent.copy(alpha = 0.18f))
+                        .clickable { revision++ }
+                        .padding(horizontal = 18.dp, vertical = 9.dp)
+                ) {
+                    Text(
+                        "Обновить",
+                        color = s.accent,
+                        fontSize = 14.sp,
+                        fontFamily = s.fontFamily
+                    )
+                }
+            }
+        }
     }
 }
