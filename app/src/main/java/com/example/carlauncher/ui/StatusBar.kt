@@ -134,12 +134,23 @@ fun TopStatusBar(
 
     val fmt = remember { SimpleDateFormat("EE d.MM", Locale.getDefault()) }
     val am = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    // Показываем уровень как есть, без пересчёта.
+    //
+    // Раньше значение приводилось к шкале 0..30 «как у CC3»: при
+    // максимуме 15 реальная восьмёрка превращалась в 16, и цифра
+    // не совпадала ни со штатным индикатором, ни с системным.
+    //
+    // Второй знаменатель важен не меньше: на этом ГУ звуком управляет
+    // MCU, а уровень Android живёт отдельно. Пока это так, число
+    // говорит лишь о внутреннем состоянии системы — и пусть говорит
+    // о нём честно, вместе с максимумом.
     val volume = remember(now) {
+        runCatching { am.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(0)
+    }
+    val volumeMax = remember {
         runCatching {
-            val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
-            val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-            (cur * 30 / max)
-        }.getOrDefault(0)
+            am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        }.getOrDefault(15)
     }
 
     // Порядок и группировка сняты с оригинала CC3. Раньше все элементы
@@ -312,7 +323,7 @@ fun TopStatusBar(
                     }
             )
             Text(
-                text = "$volume",
+                text = "$volume/$volumeMax",
                 color = TextPrimary,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(start = 6.dp, end = 7.dp)

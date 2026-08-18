@@ -157,14 +157,188 @@ object NetworkScanner {
         return r
     }
 
+    // ────────────────────────── Мобильный интернет ──────────────────────────
+
+    /** Что показывать про сотовую связь. */
+    data class MobileInfo(
+        val hasSim: Boolean,
+        val operator: String,
+        val network: String,   // 4G, 3G, LTE…
+        val enabled: Boolean
+    )
+
+    /**
+     * Состояние сотовой сети.
+     *
+     * На головных устройствах SIM-карты часто нет вовсе — тогда блок
+     * не нужно показывать совсем, вместо того чтобы рисовать пустые
+     * прочерки.
+     */
+    @SuppressLint("MissingPermission")
+    fun mobileInfo(context: Context): MobileInfo = runCatching {
+        val tm = context.applicationContext
+            .getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+
+        val simReady = tm.simState == android.telephony.TelephonyManager.SIM_STATE_READY
+        val op = tm.networkOperatorName?.takeIf { it.isNotBlank() } ?: "нет оператора"
+
+        // Тип сети читаем через dataNetworkType: getNetworkType устарел
+        // и на Android 11+ бросает исключение без разрешения.
+        val type = runCatching {
+            if (Build.VERSION.SDK_INT >= 30) tm.dataNetworkType else @Suppress("DEPRECATION") tm.networkType
+        }.getOrDefault(0)
+
+        MobileInfo(
+            hasSim = simReady,
+            operator = op,
+            network = networkTypeName(type),
+            enabled = QuickControls.isMobileDataOn(context)
+        )
+    }.getOrDefault(MobileInfo(false, "нет SIM-карты", "", false))
+
+    private fun networkTypeName(type: Int): String = when (type) {
+        20 -> "5G"
+        13, 19 -> "4G LTE"
+        3, 8, 9, 10, 15 -> "3G"
+        1, 2, 16 -> "2G"
+        else -> ""
+    }
+
+    // ─────────────────────────── Раздача интернета ───────────────────────────
+
+    data class HotspotInfo(
+        val active: Boolean,
+        val ssid: String,
+        val clients: Int
+    )
+
+    /**
+     * Точка доступа.
+     *
+     * Публичного API нет ни для чтения состояния, ни для включения:
+     * всё через скрытые методы WifiManager. На части прошивок они
+     * закрыты — тогда возвращаем «недоступно» и уводим в системные
+     * настройки, а не притворяемся, что работает.
+     */
+    fun hotspotInfo(context: Context): HotspotInfo = runCatching {
+        val wm = wifi(context)
+        val m = wm.javaClass.getDeclaredMethod("isWifiApEnabled")
+        m.isAccessible = true
+        val on = m.invoke(wm) as? Boolean == true
+
+        val ssid = runCatching {
+            val cfg = wm.javaClass.getDeclaredMethod("getWifiApConfiguration").apply {
+                isAccessible = true
+            }.invoke(wm)
+            @Suppress("DEPRECATION")
+            (cfg as? WifiConfiguration)?.SSID ?: ""
+        }.getOrDefault("")
+
+        HotspotInfo(active = on, ssid = ssid, clients = 0)
+    }.getOrDefault(HotspotInfo(false, "", 0))
+
+    /**
+     * Включение раздачи.
+     *
+     * setWifiApEnabled удалён из публичного API в Android 8, а замена
+     * (startTethering) требует прав системы. Пробуем оба пути.
+     *
+     * @return false — значит остаётся системный экран
+     */
+    @SuppressLint("PrivateApi")
+    fun toggleHotspot(context: Context): Boolean = runCatching {
+        val wm = wifi(context)
+        val target = !hotspotInfo(context).active
+
+        // Путь для старых прошивок: метод есть до Android 8,
+        // а на китайских ГУ его часто оставляют и дальше.
+        runCatching {
+            @Suppress("DEPRECATION")
+            val m = wm.javaClass.getDeclaredMethod(
+                "setWifiApEnabled",
+                WifiConfiguration::class.java,
+                Boolean::class.javaPrimitiveType
+            )
+            m.isAccessible = true
+            m.invoke(wm, null, target)
+            return hotspotInfo(context).active == target
+        }
+
+        false
+    }.getOrElse {
+        Log.w(TAG, "Раздачу переключить не удалось", it)
+        false
+    }
+
+    fun openHotspotSettings(context: Context) {
+        runCatching {
+            context.startActivity(
+                Intent().setClassName(
+                    "com.android.settings",
+                    "com.android.settings.TetherSettings"
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }.onFailure {
+            runCatching {
+                context.startActivity(
+                    Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        }
+    }
+
     // ───────────────────────────── Bluetooth ─────────────────────────────
 
     data class BtItem(
         val name: String,
         val address: String,
         val bonded: Boolean,
-        val connected: Boolean
+        val connected: Boolean,
+        /** Что именно работает: музыка, звонки. Пусто — просто сопряжено. */
+        val profiles: String = "",
+        /** Заряд телефона, -1 если не передаёт. */
+        val battery: Int = -1
     )
+
+    /**
+     * Чем занято устройство: музыка, звонки или и то и другое.
+     *
+     * Состояние профиля спрашиваем у адаптера, а не у устройства:
+     * getProfileConnectionState отвечает сразу, тогда как обычный путь
+     * через getProfileProxy асинхронный и к моменту отрисовки списка
+     * ещё не готов.
+     *
+     * Метод говорит лишь «есть ли хоть одно подключение по профилю»,
+     * без привязки к конкретному устройству. Для магнитолы этого
+     * достаточно: телефон подключается ровно один.
+     */
+    @SuppressLint("MissingPermission")
+    private fun activeProfiles(context: Context): String {
+        val a = adapter(context) ?: return ""
+        val out = mutableListOf<String>()
+        runCatching {
+            if (a.getProfileConnectionState(android.bluetooth.BluetoothProfile.A2DP) ==
+                android.bluetooth.BluetoothProfile.STATE_CONNECTED
+            ) out += "музыка"
+            if (a.getProfileConnectionState(android.bluetooth.BluetoothProfile.HEADSET) ==
+                android.bluetooth.BluetoothProfile.STATE_CONNECTED
+            ) out += "звонки"
+        }
+        return out.joinToString(" · ")
+    }
+
+    /**
+     * Заряд телефона по Bluetooth.
+     *
+     * Уровень приходит по профилю HFP и лежит в скрытом методе
+     * getBatteryLevel — публичного способа его узнать нет.
+     */
+    @SuppressLint("MissingPermission")
+    private fun batteryOf(device: BluetoothDevice): Int = runCatching {
+        val m = device.javaClass.getMethod("getBatteryLevel")
+        (m.invoke(device) as? Int)?.takeIf { it in 0..100 } ?: -1
+    }.getOrDefault(-1)
 
     private fun adapter(context: Context): BluetoothAdapter? = runCatching {
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
@@ -184,14 +358,20 @@ object NetworkScanner {
             val a = adapter(context) ?: return emptyList()
             val bonded = a.bondedDevices ?: emptySet()
             val all = (bonded + found).distinctBy { it.address }
+            val profiles = activeProfiles(context)
             all.map { d ->
+                val isConnected = runCatching {
+                    d.javaClass.getMethod("isConnected").invoke(d) as? Boolean == true
+                }.getOrDefault(false)
                 BtItem(
                     name = runCatching { d.name }.getOrNull() ?: d.address,
                     address = d.address,
                     bonded = d.bondState == BluetoothDevice.BOND_BONDED,
-                    connected = runCatching {
-                        d.javaClass.getMethod("isConnected").invoke(d) as? Boolean == true
-                    }.getOrDefault(false)
+                    connected = isConnected,
+                    // Профили показываем только у подключённого: у остальных
+                    // они всё равно пусты, а строка сбивала бы с толку.
+                    profiles = if (isConnected) profiles else "",
+                    battery = if (isConnected) batteryOf(d) else -1
                 )
             }.sortedWith(
                 compareByDescending<BtItem> { it.connected }.thenByDescending { it.bonded }

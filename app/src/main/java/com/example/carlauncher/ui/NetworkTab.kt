@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,8 +76,18 @@ fun NetworkTab() {
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // Wi-Fi отдельной колонкой: список сетей длинный, ему нужна
+        // вся высота. Остальное — узкими блоками справа.
         WifiPanel(modifier = Modifier.weight(1f).fillMaxHeight())
-        BluetoothPanel(modifier = Modifier.weight(1f).fillMaxHeight())
+
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            MobilePanel()
+            HotspotPanel()
+            BluetoothPanel(modifier = Modifier.weight(1f))
+        }
     }
 }
 
@@ -288,13 +299,27 @@ private fun BluetoothPanel(modifier: Modifier = Modifier) {
             items(devices, key = { it.address }) { d ->
                 NetRow(
                     title = d.name,
+                    // У подключённого пишем, что именно работает: одного
+                    // слова «подключено» мало — телефон может отдавать
+                    // музыку, но не принимать звонки, и наоборот.
                     subtitle = when {
+                        d.connected && d.profiles.isNotBlank() -> d.profiles
                         d.connected -> "подключено"
                         d.bonded -> "сопряжено"
                         else -> "новое устройство"
                     },
                     active = d.connected,
-                    trailing = {},
+                    trailing = {
+                        if (d.battery >= 0) {
+                            Text(
+                                "${d.battery}%",
+                                color = if (d.battery <= 20) Color(0xFFFF8A65) else s.textDim,
+                                fontSize = 12.sp,
+                                fontFamily = s.fontFamily,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    },
                     onClick = {
                         NetworkScanner.pairOrConnect(context, d.address)
                         revision++
@@ -474,6 +499,124 @@ private fun PasswordDialog(
                 ) {
                     Text("Подключить", color = s.onAccent, fontSize = 15.sp, fontFamily = s.fontFamily)
                 }
+            }
+        }
+    }
+}
+
+// ────────────────────────── Мобильный интернет ──────────────────────────
+
+/**
+ * Сотовая связь: оператор, тип сети, переключатель данных.
+ *
+ * Если SIM-карты нет — а на головных устройствах это обычное дело —
+ * блок показывает это прямо, вместо того чтобы рисовать пустые
+ * прочерки и неработающий тумблер.
+ */
+@Composable
+private fun MobilePanel() {
+    val s = LocalThemeSpec.current
+    val context = LocalContext.current
+    var revision by remember { mutableIntStateOf(0) }
+    val info = remember(revision) { NetworkScanner.mobileInfo(context) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(s.cardBg)
+            .padding(horizontal = 16.dp, vertical = 13.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Rounded.SignalCellularAlt, null,
+                tint = if (info.enabled && info.hasSim) s.accent else s.textDim,
+                modifier = Modifier.size(24.dp)
+            )
+            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(
+                    "Мобильный интернет",
+                    color = s.textPrimary,
+                    fontSize = 16.sp,
+                    fontFamily = s.fontFamily
+                )
+                Text(
+                    buildString {
+                        append(info.operator)
+                        if (info.network.isNotBlank()) append(" · ${info.network}")
+                    },
+                    color = s.textDim,
+                    fontSize = 12.sp,
+                    fontFamily = s.fontFamily,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (info.hasSim) {
+                ThemedSwitch(info.enabled) {
+                    if (!QuickControls.toggleMobileData(context)) {
+                        QuickControls.openMobileDataSettings(context)
+                    } else revision++
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────── Раздача интернета ───────────────────────────
+
+/**
+ * Точка доступа с головного устройства.
+ *
+ * Управление раздачей Android убрал из публичного API в восьмой версии,
+ * а замена требует прав системы. Пробуем скрытый метод — на китайских
+ * прошивках его часто оставляют, — и при отказе уводим в системный
+ * экран, а не делаем вид, что сработало.
+ */
+@Composable
+private fun HotspotPanel() {
+    val s = LocalThemeSpec.current
+    val context = LocalContext.current
+    var revision by remember { mutableIntStateOf(0) }
+    val info = remember(revision) { NetworkScanner.hotspotInfo(context) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(s.cardBg)
+            .padding(horizontal = 16.dp, vertical = 13.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Rounded.WifiTethering, null,
+                tint = if (info.active) s.accent else s.textDim,
+                modifier = Modifier.size(24.dp)
+            )
+            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(
+                    "Раздача интернета",
+                    color = s.textPrimary,
+                    fontSize = 16.sp,
+                    fontFamily = s.fontFamily
+                )
+                Text(
+                    when {
+                        info.active && info.ssid.isNotBlank() -> "включена · ${info.ssid.trim('"')}"
+                        info.active -> "включена"
+                        else -> "выключена"
+                    },
+                    color = s.textDim,
+                    fontSize = 12.sp,
+                    fontFamily = s.fontFamily,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            ThemedSwitch(info.active) {
+                if (!NetworkScanner.toggleHotspot(context)) {
+                    NetworkScanner.openHotspotSettings(context)
+                } else revision++
             }
         }
     }
