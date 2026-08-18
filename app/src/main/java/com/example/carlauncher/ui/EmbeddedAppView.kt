@@ -170,6 +170,20 @@ private class EmbeddedSession(
                 .setLaunchDisplayId(vd.display.displayId)
 
             context.startActivity(intent, opts.toBundle())
+
+            // Прямой запуск на дисплее часть прошивок игнорирует молча:
+            // приложение открывается на основном экране, а в карточке
+            // остаётся спидометр — ни ошибки, ни исключения.
+            //
+            // Поэтому вторым шагом переносим задачу принудительно.
+            // Приложению нужно время подняться, иначе переносить нечего:
+            // 900 мс хватает даже Картам на слабом процессоре.
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                com.example.carlauncher.data.TaskMover.moveToDisplay(
+                    context, packageName, vd.display.displayId
+                )
+            }, 900)
+
             true
         }.getOrDefault(false)
     }

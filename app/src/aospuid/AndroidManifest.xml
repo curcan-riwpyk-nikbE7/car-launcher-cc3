@@ -25,7 +25,35 @@
   системный uid, поэтому ставится везде.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    android:sharedUserId="android.uid.system">
+
+    <!--
+      ДОПОЛНЕНИЕ к истории выше: sharedUserId вернулся.
+
+      Разбор чужого лаунчера, у которого окна работают на таких же ГУ,
+      показал, что он просит ровно то же самое — android.uid.system —
+      и подписан тем же публичным ключом platform, что и мы (c8a2e9bc).
+      Значит подход был верным, а отказ установки вызван чем-то другим.
+
+      Заодно выяснилось, каких прав нам не хватало: три разрешения ниже
+      есть у него и не было у нас. ADD_TRUSTED_DISPLAY, судя по всему,
+      ключевое — без него VirtualDisplay создаётся, но система не пускает
+      в него чужие приложения. Ровно наш симптом: код отрабатывает,
+      а карточка пустая.
+    -->
+
+    <!-- Виртуальный дисплей, которому система доверяет чужие окна -->
+    <uses-permission android:name="android.permission.ADD_TRUSTED_DISPLAY"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Передача касаний внутрь окна: без неё карта видна, но не реагирует на палец -->
+    <uses-permission android:name="android.permission.INJECT_EVENTS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Запуск чужой активности на нашем дисплее -->
+    <uses-permission android:name="android.permission.START_ANY_ACTIVITY"
+        tools:ignore="ProtectedPermissions" />
 
     <!--
       Главное право. Без него ActivityOptions.setLaunchDisplayId для чужого
