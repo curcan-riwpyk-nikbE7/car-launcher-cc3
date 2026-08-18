@@ -242,29 +242,45 @@ private fun TabPill(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .height(48.dp)
+            .height(52.dp)
             .clip(shape)
-            .background(if (selected) s.cardBg else s.cardBg.copy(alpha = 0.55f))
+            // Активная вкладка залита градиентом акцента, а не просто
+            // обведена рамкой: тонкая линия на тёмном фоне терялась,
+            // и было неочевидно, какой раздел открыт.
+            .background(
+                if (selected) {
+                    Brush.horizontalGradient(
+                        listOf(s.accent.copy(alpha = 0.30f), s.accent2.copy(alpha = 0.18f))
+                    )
+                } else {
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.07f),
+                            Color.White.copy(alpha = 0.04f)
+                        )
+                    )
+                }
+            )
             .then(
                 if (selected) Modifier.border(
                     width = 2.dp,
                     brush = Brush.horizontalGradient(listOf(s.accent, s.accent2)),
                     shape = shape
-                ) else Modifier.border(1.dp, s.cardStroke, shape)
+                ) else Modifier.border(1.dp, s.cardStroke.copy(alpha = 0.5f), shape)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 22.dp)
     ) {
         Icon(
             icon, null,
-            tint = if (selected) s.textPrimary else s.textSecondary,
-            modifier = Modifier.size(19.dp)
+            tint = if (selected) s.accent else s.textSecondary,
+            modifier = Modifier.size(21.dp)
         )
         Text(
             text = title,
             color = if (selected) s.textPrimary else s.textSecondary,
-            fontSize = 15.sp,
-            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+            fontSize = 16.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             fontFamily = s.fontFamily,
             modifier = Modifier.padding(start = 10.dp)
         )
@@ -288,40 +304,73 @@ internal fun SettingTile(
     val s = LocalThemeSpec.current
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(s.cardBg)
-            .border(s.strokeWidth, s.cardStroke.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+            // Тень и подсветка верхней грани — те же, что у карточек
+            // главного экрана. Раньше плитка была плоской заливкой
+            // с тонкой рамкой и выглядела дёшево рядом с ними.
+            .cardDepth(
+                corner = 18.dp,
+                accent = s.accent,
+                background = s.cardBg,
+                stroke = s.cardStroke.copy(alpha = 0.35f),
+                strokeWidth = s.strokeWidth,
+                elevation = 6.dp
+            )
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = if (accentIcon) s.accent else s.textPrimary.copy(alpha = 0.9f),
-            modifier = Modifier.size(38.dp)
-        )
+        // Иконка в круглой подложке: без неё она висела в пустоте
+        // посреди плитки. Круг задаёт центр композиции и разделяет
+        // значок и подпись.
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(
+                    if (accentIcon) {
+                        Brush.verticalGradient(
+                            listOf(s.accent.copy(alpha = 0.28f), s.accent.copy(alpha = 0.10f))
+                        )
+                    } else {
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.10f),
+                                Color.White.copy(alpha = 0.03f)
+                            )
+                        )
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = if (accentIcon) s.accent else s.textPrimary.copy(alpha = 0.92f),
+                modifier = Modifier.size(34.dp)
+            )
+        }
         Text(
             text = title,
             color = s.textPrimary,
-            fontSize = 14.sp,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
             fontFamily = s.fontFamily,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 14.dp)
+            modifier = Modifier.padding(top = 12.dp)
         )
         if (subtitle != null) {
             Text(
                 text = subtitle,
                 color = s.textSecondary,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontFamily = s.fontFamily,
                 textAlign = TextAlign.Center,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 5.dp)
             )
         }
         if (trailing != null) {

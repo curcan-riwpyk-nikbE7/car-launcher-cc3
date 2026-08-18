@@ -1,5 +1,7 @@
 package com.example.carlauncher.ui
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Brush
 import com.example.carlauncher.data.ShortcutStore
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -96,15 +98,24 @@ fun AllAppsScreen(
                 // без неё из списка было не выйти.
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(52.dp)
                         .clip(CircleShape)
-                        .background(s.cardBg)
+                        // Градиент вместо плоской заливки: кнопка стала
+                        // объёмной и попадает в стиль остальных элементов.
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.12f),
+                                    Color.White.copy(alpha = 0.04f)
+                                )
+                            )
+                        )
                         .clickable(onClick = onBack),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back),
-                        tint = s.textPrimary, modifier = Modifier.size(21.dp)
+                        tint = s.textPrimary, modifier = Modifier.size(24.dp)
                     )
                 }
 
@@ -181,9 +192,9 @@ fun AllAppsScreen(
                         // страницы вместо пяти.
                         val columns = 4
                         val rows = with(LocalDensity.current) {
-                            // 88 dp — плитка (64 иконка + отступы),
+                            // 104 dp — плитка (76 иконка + отступы по 14),
                             // 12 dp — промежуток между рядами.
-                            val rowHeight = 100.dp.toPx()
+                            val rowHeight = 116.dp.toPx()
                             (maxHeight.toPx() / rowHeight).toInt().coerceIn(3, 6)
                         }
                         val perPage = columns * rows
@@ -215,8 +226,14 @@ fun AllAppsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(s.cardCorner))
-                                    .background(s.cardBg)
+                                    .cardDepth(
+                                        corner = s.cardCorner,
+                                        accent = s.accent,
+                                        background = s.cardBg,
+                                        stroke = s.cardStroke.copy(alpha = 0.35f),
+                                        strokeWidth = s.strokeWidth,
+                                        elevation = 5.dp
+                                    )
                                     .combinedClickable(
                                         onClick = { AppRepository.launch(context, app) },
                                         onLongClick = {
@@ -224,26 +241,38 @@ fun AllAppsScreen(
                                             actionsFor = app
                                         }
                                     )
-                                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
                             ) {
+                                // Иконка была 46 dp в контейнере 64 — на экране
+                                // магнитолы с высокой плотностью это меньше
+                                // сантиметра, попасть на ходу трудно. Теперь
+                                // 54 в контейнере 76, и подложка градиентная:
+                                // плоская заливка делала иконку наклеенной.
                                 Box(
                                     modifier = Modifier
-                                        .size(64.dp)
+                                        .size(76.dp)
                                         .clip(RoundedCornerShape(s.iconCorner))
-                                        .background(Color.White.copy(alpha = 0.07f)),
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(
+                                                    Color.White.copy(alpha = 0.12f),
+                                                    Color.White.copy(alpha = 0.04f)
+                                                )
+                                            )
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    AppIcon(app.icon, app.label, Modifier.size(46.dp))
+                                    AppIcon(app.icon, app.label, Modifier.size(54.dp))
                                 }
                                 Text(
                                     text = app.label,
                                     color = s.textPrimary,
-                                    fontSize = 15.sp,
+                                    fontSize = 17.sp,
                                     fontFamily = s.fontFamily,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier
-                                        .padding(start = 12.dp)
+                                        .padding(start = 14.dp)
                                         .weight(1f)
                                 )
                             }
