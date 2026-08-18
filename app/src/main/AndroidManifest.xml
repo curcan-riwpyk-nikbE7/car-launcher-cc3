@@ -26,6 +26,15 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!--
+      Поиск сетей и подключение к ним. CHANGE_WIFI_STATE нужен даже для
+      запуска сканирования: без него startScan молча возвращает false.
+      Само подключение с Android 10 обычным приложениям закрыто — там
+      система показывает свой диалог выбора сети, а сборке с подписью
+      прошивки разрешает подключаться напрямую.
+    -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Погода через Open-Meteo -->
     <uses-permission android:name="android.permission.INTERNET" />
