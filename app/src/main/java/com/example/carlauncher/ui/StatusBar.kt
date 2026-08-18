@@ -296,22 +296,28 @@ fun TopStatusBar(
         }
 
         // ── Группа 3: громкость ──
-        // Громкость и стрелка шторки — одна серая пилюля, как в оригинале.
-        // Раньше это были два отдельных кружка с зазором: выглядело
-        // разболтанно, а у штатного они слиты в единый блок, где стрелка
-        // сидит в светлом кружке внутри пилюли.
+        //
+        // Раньше здесь была серая пилюля с белым кружком внутри — цвета
+        // 3A3E45 и F4F4F5, снятые с рекламного снимка CC3. Но там панель
+        // светлая, а у нас тёмная и цветная: пилюля выглядела чужеродной
+        // вставкой, а белый кружок оказывался единственным светлым пятном
+        // на всей строке и перетягивал взгляд на себя.
+        //
+        // Плюс оба цвета были прописаны намертво и не менялись вместе
+        // с темой: в Corolla, Gold и Black панель своя, а пилюля всегда
+        // одинаково серая.
+        //
+        // Теперь громкость и шторка — обычные значки, как Wi-Fi и микрофон.
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(CircleShape)
-                .background(Color(0xFF3A3E45))
-                .padding(start = 11.dp, end = 3.dp, top = 3.dp, bottom = 3.dp)
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Icon(
                 Icons.AutoMirrored.Rounded.VolumeUp, "Громкость",
                 tint = TextPrimary,
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(21.dp)
+                    .clip(CircleShape)
                     .clickable {
                         runCatching {
                             am.adjustStreamVolume(
@@ -323,31 +329,24 @@ fun TopStatusBar(
                     }
             )
             Text(
-                text = "$volume/$volumeMax",
+                text = "$volume",
                 color = TextPrimary,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(start = 6.dp, end = 7.dp)
+                fontSize = 15.sp
             )
 
             // Своя шторка по короткому нажатию, системная — по долгому:
             // уведомления Android иначе стали бы недоступны.
-            Box(
+            Icon(
+                Icons.Rounded.ExpandMore, "Шторка",
+                tint = TextPrimary,
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(22.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF4F4F5))
                     .combinedClickable(
                         onClick = { onOpenShade?.invoke() ?: expandStatusBar(context) },
                         onLongClick = { expandStatusBar(context) }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Rounded.ExpandMore, "Шторка",
-                    tint = Color(0xFF23262B),
-                    modifier = Modifier.size(17.dp)
-                )
-            }
+                    )
+            )
         }
     }
 }

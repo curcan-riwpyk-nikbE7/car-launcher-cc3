@@ -1,5 +1,9 @@
 package com.example.carlauncher.ui
 
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
 import com.example.carlauncher.data.BtMusicStarter
 import com.example.carlauncher.data.SettingsStore
 import com.example.carlauncher.data.UpdateChecker
@@ -170,17 +174,26 @@ fun SettingsScreen(
         ) {
             // ── Ряд вкладок ──
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Кнопка «Назад» вровень с вкладками по высоте: раньше
+                // она была 42 против 52 у пилюль и сидела чуть выше ряда.
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(52.dp)
                         .clip(CircleShape)
-                        .background(s.cardBg)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.12f),
+                                    Color.White.copy(alpha = 0.04f)
+                                )
+                            )
+                        )
                         .clickable(onClick = onBack),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.AutoMirrored.Rounded.ArrowBack, "Назад",
-                        tint = s.textPrimary, modifier = Modifier.size(20.dp)
+                        tint = s.textPrimary, modifier = Modifier.size(24.dp)
                     )
                 }
 
@@ -1054,18 +1067,52 @@ private fun SystemTab(
     }
 }
 
+/**
+ * Переключатель.
+ *
+ * Своя реализация вместо материалового: стандартный Switch на экране
+ * магнитолы мелкий — дорожка 52 dp, кружок 20. За рулём в него трудно
+ * попасть, а рядом с крупными плитками он выглядит игрушечным.
+ *
+ * Здесь дорожка 62 и кружок 26, включённое состояние залито градиентом
+ * акцента, кружок отбрасывает тень. Положение анимируется, поэтому
+ * переключение читается как жест, а не как мгновенная подмена цвета.
+ */
 @Composable
 internal fun ThemedSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
     val s = LocalThemeSpec.current
-    Switch(
-        checked = checked,
-        onCheckedChange = onChange,
-        colors = SwitchDefaults.colors(
-            checkedThumbColor = s.onAccent,
-            checkedTrackColor = s.accent,
-            uncheckedThumbColor = s.textSecondary,
-            uncheckedTrackColor = s.textPrimary.copy(alpha = 0.12f),
-            uncheckedBorderColor = Color.Transparent
-        )
+    val offset by animateDpAsState(
+        targetValue = if (checked) 34.dp else 4.dp,
+        animationSpec = tween(180),
+        label = "thumb"
     )
+
+    Box(
+        modifier = Modifier
+            .size(width = 62.dp, height = 34.dp)
+            .clip(CircleShape)
+            .background(
+                if (checked) {
+                    Brush.horizontalGradient(listOf(s.accent, s.accent2))
+                } else {
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.10f),
+                            Color.White.copy(alpha = 0.06f)
+                        )
+                    )
+                }
+            )
+            .clickable { onChange(!checked) }
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = offset)
+                .align(Alignment.CenterStart)
+                .size(26.dp)
+                .shadow(3.dp, CircleShape)
+                .clip(CircleShape)
+                .background(if (checked) Color.White else s.textSecondary)
+        )
+    }
 }
