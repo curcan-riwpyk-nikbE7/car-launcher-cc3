@@ -28,6 +28,7 @@ object SettingsStore {
     private const val K_PREWARM = "set_prewarm_window"
     private const val K_SPEED_MODE = "set_speed_mode"
     private const val K_SPEED_AREA = "set_speed_area"
+    private const val K_SPEED_CARD_VIEW = "set_speed_card_view"
 
     private var prefs: android.content.SharedPreferences? = null
 
@@ -86,6 +87,15 @@ object SettingsStore {
     /** Режим карточки спидометра: embed | freeform | split | full. */
     val speedMode: MutableState<String> = mutableStateOf("embed")
 
+    /**
+     * Что показывает карточка авто: «speed» — спидометр, «app» —
+     * назначенное приложение (карта навигатора) на всю карточку.
+     * Переключается одной кнопкой на самой карточке, как у CC3.
+     * По умолчанию «app»: поведение тех, кто уже назначил приложение,
+     * после обновления не меняется.
+     */
+    val speedCardView: MutableState<String> = mutableStateOf("app")
+
 
     /** Область плавающего окна: Card | RightColumn | RightHalf. */
     val speedArea: MutableState<String> = mutableStateOf("RightColumn")
@@ -114,6 +124,7 @@ object SettingsStore {
             if (SystemPrivileges.canEmbedActivities(context)) "embed" else "freeform"
         speedMode.value = p.getString(K_SPEED_MODE, defaultMode) ?: defaultMode
         speedArea.value = p.getString(K_SPEED_AREA, "RightColumn") ?: "RightColumn"
+        speedCardView.value = p.getString(K_SPEED_CARD_VIEW, "app") ?: "app"
     }
 
     fun setGestures(v: Boolean) { gesturesEnabled.value = v; prefs?.edit()?.putBoolean(K_GESTURES, v)?.apply() }
@@ -130,6 +141,7 @@ object SettingsStore {
     fun setPrewarm(v: Boolean) { prewarmWindow.value = v; prefs?.edit()?.putBoolean(K_PREWARM, v)?.apply() }
     fun setSpeedArea(v: String) { speedArea.value = v; prefs?.edit()?.putString(K_SPEED_AREA, v)?.apply() }
     fun setSpeedMode(v: String) { speedMode.value = v; prefs?.edit()?.putString(K_SPEED_MODE, v)?.apply() }
+    fun setSpeedCardView(v: String) { speedCardView.value = v; prefs?.edit()?.putString(K_SPEED_CARD_VIEW, v)?.apply() }
     fun setRadioName(v: String) { radioName.value = v; prefs?.edit()?.putString(K_RADIO_NAME, v)?.apply() }
 
     /** Сброс всех настроек лаунчера, включая ярлыки и тему. */

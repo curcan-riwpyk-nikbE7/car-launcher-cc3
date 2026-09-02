@@ -186,8 +186,11 @@ fun HomeScreen(
         val a = speedApp
         if (a != null) {
             when {
-                // Уже живёт в карточке — трогать нечего
-                SystemPrivileges.canEmbedActivities(context) && !embedFailed -> Unit
+                // Как у CC3: тап по спидометру, к которому назначено
+                // приложение, меняет карточку на карту навигатора. Назад —
+                // той же кнопкой-переключателем в углу карточки.
+                SystemPrivileges.canEmbedActivities(context) && !embedFailed ->
+                    SettingsStore.setSpeedCardView("app")
                 FreeformLauncher.isAvailable(context) -> launchFreeform(a.packageName)
                 else -> AppRepository.launch(context, a)
             }
@@ -195,6 +198,15 @@ fun HomeScreen(
             pickerSlot = ShortcutStore.SLOT_SPEED
             pickerTitle = "Что показывать вместо спидометра"
         }
+    }
+
+    // Кнопка-переключатель на карточке: спидометр ↔ приложение.
+    // При возврате в режим приложения встраиванию даём второй шанс —
+    // раньше единственный сбой запоминался до перезапуска лаунчера.
+    val onToggleSpeedView: () -> Unit = {
+        val toApp = SettingsStore.speedCardView.value != "app"
+        if (toApp) embedFailed = false
+        SettingsStore.setSpeedCardView(if (toApp) "app" else "speed")
     }
     // Удержание — сменить приложение в карточке. Сразу выбор приложения,
     // без промежуточного меню режимов.
@@ -299,11 +311,15 @@ fun HomeScreen(
                     onSpeedClick = onSpeedClick,
                     onSpeedLongClick = onSpeedLongClick,
                     onBounds = { r -> cardBounds.set(r) },
-                    // Встраиваем всегда, когда система это позволяет.
-                    // Не позволяет — CarCard сам покажет спидометр,
-                    // а приложение откроется окном по нажатию.
-                    embeddedPackage = speedApp?.packageName?.takeIf { !embedFailed },
+                    // Встраиваем, только если карточка в режиме приложения:
+                    // в режиме спидометра сессию создавать нельзя — лишний
+                    // виртуальный дисплей грузит ГУ и жрёт батарею.
+                    // Не позволяет система — CarCard сам покажет спидометр.
+                    embeddedPackage = speedApp?.packageName?.takeIf {
+                        !embedFailed && SettingsStore.speedCardView.value == "app"
+                    },
                     onEmbedFailed = { embedFailed = true },
+                    onToggleView = onToggleSpeedView,
                     onClimate = {
                         AppRepository.launchFirstAvailable(
                             context, AppRepository.CLIMATE,
@@ -664,6 +680,9 @@ fun HomeScreen(
                     // Встроенное приложение поднимется само при отрисовке
                     // карточки. Если прав нет — покажем его окном.
                     embedFailed = false
+                    // Свеженазначенное приложение показываем сразу,
+                    // а не ждём, пока пользователь найдёт переключатель.
+                    SettingsStore.setSpeedCardView("app")
                     if (!SystemPrivileges.canEmbedActivities(context) &&
                         FreeformLauncher.isAvailable(context)
                     ) {

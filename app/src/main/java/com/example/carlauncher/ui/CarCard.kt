@@ -26,11 +26,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,6 +79,12 @@ fun CarCard(
     /** Пакет приложения, встроенного прямо в карточку (null — спидометр). */
     embeddedPackage: String? = null,
     onEmbedFailed: () -> Unit = {},
+    /**
+     * Одно касание по переключателю на карточке: спидометр ↔ приложение.
+     * Поведение TEYES CC3, где виджет авто меняется на карту навигатора
+     * и обратно без захода в настройки.
+     */
+    onToggleView: () -> Unit = {},
     onClimate: () -> Unit,
     onLights: () -> Unit,
     onExpand: () -> Unit = {},
@@ -234,16 +243,17 @@ fun CarCard(
             )
         }
 
-        // Приложение занимает карточку целиком, без системной рамки
+        // Приложение занимает карточку целиком, без системной рамки.
+        // Без early return: переключатель и кнопка выбора должны жить
+        // поверх встроенного приложения, иначе назад к спидометру
+        // дороги нет — а у CC3 это одно касание.
         if (embeddedPackage != null) {
             EmbeddedAppView(
                 packageName = embeddedPackage,
                 modifier = Modifier.fillMaxSize(),
                 onFailed = onEmbedFailed
             )
-            return@Box
-        }
-
+        } else {
         Row(modifier = Modifier.fillMaxSize().padding(dimens().screenPadding + 4.dp)) {
             Column(
                 modifier = Modifier.fillMaxHeight(),
@@ -262,6 +272,44 @@ fun CarCard(
                     RoundToggle(Icons.Rounded.Air, "Климат", onClimate)
                     RoundToggle(Icons.Rounded.Lightbulb, "Свет", onLights)
                 }
+            }
+        }
+        }
+
+        // Переключатель «спидометр ↔ приложение». Виден, только когда
+        // приложение назначено — без него переключать нечего.
+        // В режиме приложения подложка несёт живую скорость: у CC3 цифра
+        // остаётся поверх карты, и глазу не нужно искать её в статус-баре.
+        if (speedApp != null) {
+            val showingApp = embeddedPackage != null
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .widthIn(max = 180.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color.Black.copy(alpha = 0.38f))
+                    .clickable(onClick = onToggleView)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = if (showingApp) Icons.Rounded.Speed else Icons.Rounded.Map,
+                    contentDescription =
+                        if (showingApp) "Показать спидометр" else "Показать карту",
+                    tint = Color.White.copy(alpha = 0.95f),
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = if (showingApp) speedKmh.toString() else speedApp.label,
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = s.fontFamily,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 6.dp)
+                )
             }
         }
 
