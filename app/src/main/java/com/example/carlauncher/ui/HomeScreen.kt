@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.SystemClock
+import android.view.WindowManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -31,10 +33,13 @@ import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,13 +49,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.carlauncher.AllAppsActivity
 import com.example.carlauncher.SettingsActivity
 import com.example.carlauncher.data.AppInfo
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.delay
 import com.example.carlauncher.data.AppRepository
 import com.example.carlauncher.data.DefaultLauncherCheck
 import com.example.carlauncher.data.PackageChangeEffect
@@ -65,6 +78,7 @@ import com.example.carlauncher.data.TripComputer
 import com.example.carlauncher.data.WallpaperStore
 import com.example.carlauncher.data.rememberIsNight
 import com.example.carlauncher.data.ShortcutStore
+import com.example.carlauncher.data.TaskMover
 import com.example.carlauncher.data.rememberNowPlaying
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -152,6 +166,101 @@ fun HomeScreen(
     PackageChangeEffect { revision++ }
     // Приложение, встроенное в карточку прямо сейчас
     var embedFailed by remember { mutableStateOf(false) }
+    // Что показывает карточка: спидометр или встроенное приложение.
+    // Тап по спидометру переключает на приложение, кнопка «спидометр»
+    // под ним возвращает обратно — как в штатных лаунчерах. Режим
+    // хранится в SettingsStore и переживает перезапуск лаунчера:
+    // заглушил машину с картой — снова сел, карточка так и с картой.
+
+    // Звук при превышении лимита скорости. Сигналим один раз в момент
+    // входа в «зону превышения», а не гудим всё время, пока едем быстро.
+    var overLimitBeeped by remember { mutableStateOf(false) }
+    LaunchedEffect(
+        speedKmh,
+        SettingsStore.speedLimitEnabled.value,
+        SettingsStore.speedLimitKmh.value
+    ) {
+        val over = SettingsStore.speedLimitEnabled.value &&
+            speedKmh >= SettingsStore.speedLimitKmh.value
+        if (over && !overLimitBeeped && SettingsStore.speedLimitSound.value) {
+            runCatching {
+                val tone = android.media.ToneGenerator(
+                    android.media.AudioManager.STREAM_MUSIC, 80
+                )
+                tone.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 180)
+                android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed({ tone.release() }, 450)
+            }
+        }
+        overLimitBeeped = over
+    }
+
+    // ── Заставка-часы ──────────────────────────────────────────────
+    // Если экран давно не трогали — показываем крупные часы на тёмном
+    // фоне и приглушаем подсветку. Любое касание возвращает лаунчер.
+    // Это и «ночная лампа» на парковке, и защита экрана от выгорания.
+    var lastInteraction by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
+    var saverVisible by remember { mutableStateOf(false) }
+    val saverDateFmt = remember {
+        SimpleDateFormat("EEEE, d MMMM", Locale.getDefault())
+    }
+
+    // Пока открыт развёрнутый блок (плеер, шторка, инфо) — таймер стоит:
+    // заставка не должна вылезать под пальцами.
+    val busyUi = shadeOpen || playerExpanded || radioExpanded ||
+        carExpanded || carInfoOpen
+    DisposableEffect(busyUi) {
+        if (!busyUi) lastInteraction = SystemClock.uptimeMillis()
+        onDispose {}
+    }
+
+    // Вернулись в лаунчер (или экран включился) — таймер с чистого листа.
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                lastInteraction = SystemClock.uptimeMillis()
+                saverVisible = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    val saverEnabled = SettingsStore.saverEnabled.value
+    val saverTimeoutMs = SettingsStore.saverTimeoutMin.value * 60_000L
+    LaunchedEffect(saverEnabled, saverTimeoutMs, saverVisible, busyUi) {
+        if (!saverEnabled || saverVisible || busyUi) return@LaunchedEffect
+        while (true) {
+            if (SystemClock.uptimeMillis() - lastInteraction >= saverTimeoutMs) {
+                saverVisible = true
+                break
+            }
+            delay(1000)
+        }
+    }
+
+    // На время заставки приглушаем подсветку окна — иначе тёмный экран
+    // с белыми цифрами ночью всё равно светит как прожектор.
+    val saverView = LocalView.current
+    DisposableEffect(saverVisible) {
+        if (saverVisible) {
+            val window = (saverView.context as? android.app.Activity)?.window
+            val prev = window?.attributes?.screenBrightness
+            window?.let { w ->
+                val lp = w.attributes
+                lp.screenBrightness = 0.05f
+                w.attributes = lp
+            }
+            onDispose {
+                window?.let { w ->
+                    val lp = w.attributes
+                    lp.screenBrightness = prev ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                    w.attributes = lp
+                }
+            }
+        } else onDispose {}
+    }
+
     // Границы карточки авто на экране — по ним ляжет плавающее окно
     val cardBounds = remember { android.graphics.Rect() }
     val screenPx = remember {
@@ -177,6 +286,9 @@ fun HomeScreen(
 
     // Тап по спидометру.
     //
+    // Поведение как в штатных лаунчерах: тап по спидометру — карточка
+    // мгновенно показывает назначенное приложение (карту), повторный
+    // тап по кнопке «спидометр» под ним — возвращает спидометр.
     // Способ показа больше не спрашиваем — пробуем сами, по убыванию
     // качества: встроить без рамки, не вышло → окно в границах карточки,
     // не вышло → на весь экран. У штатных лаунчеров пользователь выбирает
@@ -186,8 +298,10 @@ fun HomeScreen(
         val a = speedApp
         if (a != null) {
             when {
-                // Уже живёт в карточке — трогать нечего
-                SystemPrivileges.canEmbedActivities(context) && !embedFailed -> Unit
+                // Встраивание доступно и раньше не падало — разворачиваем
+                // приложение в карточке. Обратно — кнопкой под ним.
+                SystemPrivileges.canEmbedActivities(context) && !embedFailed ->
+                    SettingsStore.setSpeedCardEmbedded(true)
                 FreeformLauncher.isAvailable(context) -> launchFreeform(a.packageName)
                 else -> AppRepository.launch(context, a)
             }
@@ -299,11 +413,27 @@ fun HomeScreen(
                     onSpeedClick = onSpeedClick,
                     onSpeedLongClick = onSpeedLongClick,
                     onBounds = { r -> cardBounds.set(r) },
-                    // Встраиваем всегда, когда система это позволяет.
-                    // Не позволяет — CarCard сам покажет спидометр,
-                    // а приложение откроется окном по нажатию.
-                    embeddedPackage = speedApp?.packageName?.takeIf { !embedFailed },
+                    // Приложение встраиваем только когда карточка в режиме
+                    // «карта»: выбранный пакет сам по себе спидометр
+                    // не прячет — сначала тап по спидометру.
+                    embeddedPackage = speedApp?.packageName
+                        ?.takeIf {
+                            SettingsStore.speedCardEmbedded.value && !embedFailed
+                        },
                     onEmbedFailed = { embedFailed = true },
+                    onBackToSpeed = { SettingsStore.setSpeedCardEmbedded(false) },
+                    // «На весь экран»: карточка возвращается к спидометру,
+                    // а задача приложения уезжает на основной экран.
+                    onOpenFullscreen = {
+                        val a = speedApp
+                        if (a != null) {
+                            SettingsStore.setSpeedCardEmbedded(false)
+                            if (!TaskMover.moveToMainDisplay(context, a.packageName)) {
+                                // Задача ещё не поднялась — просто открываем
+                                AppRepository.launch(context, a)
+                            }
+                        }
+                    },
                     onClimate = {
                         AppRepository.launchFirstAvailable(
                             context, AppRepository.CLIMATE,
@@ -442,6 +572,16 @@ fun HomeScreen(
                 },
                 enabled = SettingsStore.gesturesEnabled.value
             )
+            // Любое касание по лаунчеру сбрасывает таймер бездействия:
+            // заставка появляется, только когда экран действительно
+            // бросили. События ловим раньше всех (Initial pass), чтобы
+            // сброс работал даже для жестов, съедаемых детьми.
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    lastInteraction = SystemClock.uptimeMillis()
+                }
+            }
     ) {
         // Размеры считаем от реального экрана: у ГУ 1280x720 бывает
         // и 160, и 320 dpi — фиксированные dp ломали бы раскладку.
@@ -645,6 +785,19 @@ fun HomeScreen(
         NightDim(isNight)
 
         GestureOverlay(feedback)
+
+        // Заставка-часы — поверх всего, включая жесты: пока она видна,
+        // лаунчер должен спать. Любое касание — и лаунчер проснулся.
+        if (saverVisible) {
+            ScreenSaverClock(
+                time = timeFmt.format(now),
+                date = saverDateFmt.format(now),
+                onWake = {
+                    saverVisible = false
+                    lastInteraction = SystemClock.uptimeMillis()
+                }
+            )
+        }
         }
         }
     }
@@ -661,12 +814,13 @@ fun HomeScreen(
                 pickerSlot = null
                 // Сразу показываем результат: запускаем в выбранном режиме
                 if (slot == ShortcutStore.SLOT_SPEED) {
-                    // Встроенное приложение поднимется само при отрисовке
-                    // карточки. Если прав нет — покажем его окном.
+                    // Права есть — карточка сразу переключается на новое
+                    // приложение (кнопка «спидометр» под ним вернёт
+                    // спидометр). Если прав нет — покажем его окном.
                     embedFailed = false
-                    if (!SystemPrivileges.canEmbedActivities(context) &&
-                        FreeformLauncher.isAvailable(context)
-                    ) {
+                    if (SystemPrivileges.canEmbedActivities(context)) {
+                        SettingsStore.setSpeedCardEmbedded(true)
+                    } else if (FreeformLauncher.isAvailable(context)) {
                         launchFreeform(app.packageName)
                     }
                 }
@@ -696,4 +850,47 @@ private fun smartPlayPause(context: android.content.Context) {
         return
     }
     MediaControl.playPause(context)
+}
+
+/**
+ * Заставка-часы: чёрный экран с крупным временем.
+ *
+ * Появляется после долгого бездействия (см. HomeScreen), подсветка в это
+ * время приглушена отдельным эффектом. Любое касание будит лаунчер —
+ * поэтому здесь нет ни кнопок, ни подсказок: тап в любом месте.
+ */
+@Composable
+private fun ScreenSaverClock(time: String, date: String, onWake: () -> Unit) {
+    val s = LocalThemeSpec.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF05060A))
+            // Любое событие (не только «чистый» тап) — проснуться.
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    onWake()
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = time,
+                color = Color(0xFFE8EAED),
+                fontSize = 128.sp,
+                fontWeight = FontWeight.ExtraLight,
+                fontFamily = s.fontFamily,
+                letterSpacing = 4.sp
+            )
+            Text(
+                text = date,
+                color = Color(0x99E8EAED),
+                fontSize = 20.sp,
+                fontFamily = s.fontFamily,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+        }
+    }
 }

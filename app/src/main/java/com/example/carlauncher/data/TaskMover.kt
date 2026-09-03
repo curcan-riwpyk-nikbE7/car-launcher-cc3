@@ -34,13 +34,28 @@ object TaskMover {
     /**
      * Переносит задачу приложения на дисплей.
      *
-     * @return true, если хотя бы один способ сработал
+     * Вызывается несколько раз с паузой (см. EmbeddedSession.scheduleMove):
+     * задача появляется не сразу после startActivity, и пока приложение
+     * холодно стартует, переносить нечего. Функция идемпотентна: если
+     * задача уже на нужном дисплее, повторный вызов ничего не ломает —
+     * просто поднимает её наверх.
+     *
+     * @return true, если задача на целевом дисплее (была или переехала)
      */
     fun moveToDisplay(context: Context, packageName: String, displayId: Int): Boolean {
-        val taskId = findTaskId(context, packageName)
-        if (taskId < 0) {
+        val task = findTask(context, packageName)
+        if (task == null) {
             Log.w(TAG, "Задача $packageName не найдена")
             return false
+        }
+        val taskId = task.id
+
+        // Прямой запуск на дисплее (setLaunchDisplayId) часть прошивок
+        // уважает: задача уже родилась на нашем дисплее, переносить
+        // не нужно. Заодно не даём повторным попыткам дёргать систему.
+        if (readDisplayId(task) == displayId) {
+            moveToFront(context, taskId)
+            return true
         }
 
         // Android не держит одну задачу на двух дисплеях сразу. Если
@@ -60,15 +75,50 @@ object TaskMover {
         return moved
     }
 
-    /** Идентификатор верхней задачи приложения. */
-    private fun findTaskId(context: Context, packageName: String): Int = runCatching {
-        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        // getAppTasks отдаёт только свои задачи, поэтому идём через
-        // getRunningTasks: он ограничен, но с REAL_GET_TASKS отдаёт всё.
-        @Suppress("DEPRECATION")
-        val tasks = am.getRunningTasks(50)
-        tasks.firstOrNull { it.baseActivity?.packageName == packageName }?.id ?: -1
-    }.getOrDefault(-1)
+    /** Первая подходящая задача приложения (или null, если ещё не создана). */
+    private fun findTask(context: Context, packageName: String): ActivityManager.RunningTaskInfo? =
+        runCatching {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            // getAppTasks отдаёт только свои задачи, поэтому идём через
+            // getRunningTasks: он ограничен, но с REAL_GET_TASKS отдаёт всё.
+            @Suppress("DEPRECATION")
+            am.getRunningTasks(50).firstOrNull {
+                it.baseActivity?.packageName == packageName
+            }
+        }.getOrNull()
+
+    /**
+     * «Развернуть на весь экран»: переносит задачу приложения
+     * с виртуального дисплея (карточка) на основной экран.
+     *
+     * В отличие от moveToDisplay здесь НЕ чистим чужие задачи: цель —
+     * основной экран, а не наш дисплей, и удаление «лишней» задачи
+     * с виртуального дисплея убило бы именно ту, что мы переносим.
+     */
+    fun moveToMainDisplay(context: Context, packageName: String): Boolean {
+        val task = findTask(context, packageName) ?: return false
+        val taskId = task.id
+        val mainDisplay = 0   // Display.DEFAULT_DISPLAY
+
+        if (readDisplayId(task) == mainDisplay) {
+            moveToFront(context, taskId)
+            return true
+        }
+
+        var moved = moveRootTaskToDisplay(taskId, mainDisplay)
+        if (!moved) moved = moveTaskToDisplayLegacy(context, taskId, mainDisplay)
+
+        if (moved) {
+            setWindowingMode(taskId, WINDOWING_MODE_FULLSCREEN)
+            moveToFront(context, taskId)
+        }
+        return moved
+    }
+
+    /** На каком дисплее живёт задача. Поле скрытое и есть не на всех версиях. */
+    private fun readDisplayId(task: ActivityManager.RunningTaskInfo): Int? = runCatching {
+        task.javaClass.getField("displayId").getInt(task)
+    }.getOrNull()
 
     /**
      * Основной путь: moveRootTaskToDisplay у ActivityTaskManager.

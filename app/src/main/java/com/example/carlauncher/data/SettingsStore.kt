@@ -28,6 +28,12 @@ object SettingsStore {
     private const val K_PREWARM = "set_prewarm_window"
     private const val K_SPEED_MODE = "set_speed_mode"
     private const val K_SPEED_AREA = "set_speed_area"
+    private const val K_LIMIT_ENABLED = "set_speed_limit_enabled"
+    private const val K_LIMIT_KMH = "set_speed_limit_kmh"
+    private const val K_LIMIT_SOUND = "set_speed_limit_sound"
+    private const val K_SAVER_ENABLED = "set_saver_enabled"
+    private const val K_SAVER_TIMEOUT = "set_saver_timeout_min"
+    private const val K_SPEED_EMBEDDED = "set_speed_card_embedded"
 
     private var prefs: android.content.SharedPreferences? = null
 
@@ -90,6 +96,28 @@ object SettingsStore {
     /** Область плавающего окна: Card | RightColumn | RightHalf. */
     val speedArea: MutableState<String> = mutableStateOf("RightColumn")
 
+    /** Предупреждение о превышении скорости: цифры краснеют + сигнал. */
+    val speedLimitEnabled: MutableState<Boolean> = mutableStateOf(false)
+
+    /** Порог предупреждения, км/ч. */
+    val speedLimitKmh: MutableState<Int> = mutableStateOf(60)
+
+    /** Короткий звук в момент превышения порога. */
+    val speedLimitSound: MutableState<Boolean> = mutableStateOf(true)
+
+    /** Заставка-часы при бездействии. */
+    val saverEnabled: MutableState<Boolean> = mutableStateOf(true)
+
+    /** Через сколько минут бездействия показывать заставку. */
+    val saverTimeoutMin: MutableState<Int> = mutableStateOf(2)
+
+    /**
+     * Карточка авто показывает встроенное приложение (а не спидометр).
+     * Запоминается между запусками: заглушил машину с картой — снова
+     * сел, карточка так и открывается картой.
+     */
+    val speedCardEmbedded: MutableState<Boolean> = mutableStateOf(false)
+
     fun init(context: Context) {
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
@@ -114,6 +142,12 @@ object SettingsStore {
             if (SystemPrivileges.canEmbedActivities(context)) "embed" else "freeform"
         speedMode.value = p.getString(K_SPEED_MODE, defaultMode) ?: defaultMode
         speedArea.value = p.getString(K_SPEED_AREA, "RightColumn") ?: "RightColumn"
+        speedLimitEnabled.value = p.getBoolean(K_LIMIT_ENABLED, false)
+        speedLimitKmh.value = p.getInt(K_LIMIT_KMH, 60).coerceIn(30, 200)
+        speedLimitSound.value = p.getBoolean(K_LIMIT_SOUND, true)
+        saverEnabled.value = p.getBoolean(K_SAVER_ENABLED, true)
+        saverTimeoutMin.value = p.getInt(K_SAVER_TIMEOUT, 2).coerceIn(1, 15)
+        speedCardEmbedded.value = p.getBoolean(K_SPEED_EMBEDDED, false)
     }
 
     fun setGestures(v: Boolean) { gesturesEnabled.value = v; prefs?.edit()?.putBoolean(K_GESTURES, v)?.apply() }
@@ -131,6 +165,32 @@ object SettingsStore {
     fun setSpeedArea(v: String) { speedArea.value = v; prefs?.edit()?.putString(K_SPEED_AREA, v)?.apply() }
     fun setSpeedMode(v: String) { speedMode.value = v; prefs?.edit()?.putString(K_SPEED_MODE, v)?.apply() }
     fun setRadioName(v: String) { radioName.value = v; prefs?.edit()?.putString(K_RADIO_NAME, v)?.apply() }
+    fun setSpeedLimitEnabled(v: Boolean) {
+        speedLimitEnabled.value = v
+        prefs?.edit()?.putBoolean(K_LIMIT_ENABLED, v)?.apply()
+    }
+    fun setSpeedLimitKmh(v: Int) {
+        val c = v.coerceIn(30, 200)
+        speedLimitKmh.value = c
+        prefs?.edit()?.putInt(K_LIMIT_KMH, c)?.apply()
+    }
+    fun setSpeedLimitSound(v: Boolean) {
+        speedLimitSound.value = v
+        prefs?.edit()?.putBoolean(K_LIMIT_SOUND, v)?.apply()
+    }
+    fun setSaverEnabled(v: Boolean) {
+        saverEnabled.value = v
+        prefs?.edit()?.putBoolean(K_SAVER_ENABLED, v)?.apply()
+    }
+    fun setSaverTimeout(v: Int) {
+        val c = v.coerceIn(1, 15)
+        saverTimeoutMin.value = c
+        prefs?.edit()?.putInt(K_SAVER_TIMEOUT, c)?.apply()
+    }
+    fun setSpeedCardEmbedded(v: Boolean) {
+        speedCardEmbedded.value = v
+        prefs?.edit()?.putBoolean(K_SPEED_EMBEDDED, v)?.apply()
+    }
 
     /** Сброс всех настроек лаунчера, включая ярлыки и тему. */
     fun resetAll(context: Context) {

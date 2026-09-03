@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.carlauncher"
         minSdk = 23          // Android 6.0 — типовые китайские ГУ
         targetSdk = 30       // намеренно 30: на targetSdk 31+ старые ГУ ломают часть intent'ов
-        versionCode = 31
-        versionName = "4.0"
+        versionCode = 33
+        versionName = "4.2"
 
         ndk {
             // Головные устройства все на ARM. Библиотеки Vosk для x86
@@ -38,6 +38,17 @@ android {
             storeFile = file("../platform.jks")
             storePassword = "android"
             keyAlias = "platform"
+            keyPassword = "android"
+        }
+        // Тестовый ключ AOSP (testkey). Именно им подписаны прошивки
+        // с тегом test-keys — и именно он был в утерянном carlauncher.jks.
+        // Ключ публичный (лежит в репозитории AOSP), приватная часть
+        // восстановлена в keys/testkey.jks. Отпечаток совпадает
+        // с релизным KINGSAID-TESTKEY.apk: A4:0D:A8:0A:59:D1:70:CA...
+        create("testkey") {
+            storeFile = file("../keys/testkey.jks")
+            storePassword = "android"
+            keyAlias = "testkey"
             keyPassword = "android"
         }
     }
@@ -73,17 +84,19 @@ android {
         // signature-уровня приходят и от одной совпавшей подписи.
         create("aosp") {
             dimension = "privilege"
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("testkey")
             buildConfigField("String", "UPDATE_ASSET", "\"KINGSAID-TESTKEY.apk\"")
         }
         // То же самое, но с sharedUserId. Без него VirtualDisplay
         // не принимает чужую активность даже при выданном
         // ACTIVITY_EMBEDDING — на этом спотыкались все, кто делал PIP.
-        // Отдельным вариантом, потому что несовпадение подписи
-        // с sharedUserId срывает установку целиком.
+        // Подпись — ключом платформы: релизный KINGSAID-PIP.apk подписан
+        // именно им (проверено по сертификату), и только такая подпись
+        // пустит пакет в android.uid.system. Раньше здесь стоял
+        // carlauncher.jks — из-за этого PIP и не вставал поверх релиза.
         create("aospuid") {
             dimension = "privilege"
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("platform")
             buildConfigField("String", "UPDATE_ASSET", "\"KINGSAID-PIP.apk\"")
         }
     }

@@ -31,6 +31,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +56,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.carlauncher.R
 import com.example.carlauncher.data.AppInfo
+import com.example.carlauncher.data.SettingsStore
+
+/**
+ * Красный «превышения» — тот же тон, что у стоп-полосы на картинке
+ * машины (0xFFFF4B57). Темам его не доверяем: у светлых тем акцент
+ * может оказаться зелёным, а тревога обязана оставаться красной.
+ */
+private val OverLimitRed = Color(0xFFFF4B57)
 
 /**
  * Карточка авто. Внешний вид сильно зависит от темы: фото машины может
@@ -76,6 +86,10 @@ fun CarCard(
     /** Пакет приложения, встроенного прямо в карточку (null — спидометр). */
     embeddedPackage: String? = null,
     onEmbedFailed: () -> Unit = {},
+    /** Тап по кнопке «спидометр» под встроенным приложением — выйти из карты. */
+    onBackToSpeed: () -> Unit = {},
+    /** Кнопка «на весь экран» под встроенным приложением. */
+    onOpenFullscreen: () -> Unit = {},
     onClimate: () -> Unit,
     onLights: () -> Unit,
     onExpand: () -> Unit = {},
@@ -234,13 +248,32 @@ fun CarCard(
             )
         }
 
-        // Приложение занимает карточку целиком, без системной рамки
+        // Приложение занимает карточку целиком, без системной рамки.
+        // Под ним узкая строка управления: название приложения и кнопки
+        // «вернуть спидометр» (тап — карта, ещё тап — спидометр, как
+        // в штатных лаунчерах) и «сменить приложение». Строка лежит
+        // ПОД поверхностью приложения, а не поверх неё: Compose не
+        // умеет рисовать поверх SurfaceView в той же иерархии.
         if (embeddedPackage != null) {
-            EmbeddedAppView(
-                packageName = embeddedPackage,
-                modifier = Modifier.fillMaxSize(),
-                onFailed = onEmbedFailed
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(s.cardCorner))
+            ) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    EmbeddedAppView(
+                        packageName = embeddedPackage,
+                        modifier = Modifier.fillMaxSize(),
+                        onFailed = onEmbedFailed
+                    )
+                }
+                EmbedCardBar(
+                    app = speedApp,
+                    onBackToSpeed = onBackToSpeed,
+                    onFullscreen = onOpenFullscreen,
+                    onPickApp = onSpeedLongClick
+                )
+            }
             return@Box
         }
 
@@ -345,6 +378,14 @@ private fun SpeedWidget(
 private fun SpeedReadout(speedKmh: Int) {
     val s = LocalThemeSpec.current
 
+    // Превышение заданного лимита: цифры краснеют, чтобы водитель видел
+    // выход за порог боковым зрением. Звук добавляется отдельно (см.
+    // HomeScreen), здесь — только цвет.
+    val overLimit = SettingsStore.speedLimitEnabled.value &&
+        speedKmh >= SettingsStore.speedLimitKmh.value
+    val valueColor = if (overLimit) OverLimitRed else s.textPrimary
+    val unitColor = if (overLimit) OverLimitRed else s.textSecondary
+
     when (s.speedStyle) {
         SpeedStyle.AnalogRing -> Row(verticalAlignment = Alignment.CenterVertically) {
             Box(contentAlignment = Alignment.Center) {
@@ -357,7 +398,7 @@ private fun SpeedReadout(speedKmh: Int) {
                     )
                     val frac = (speedKmh.coerceIn(0, 200) / 200f)
                     drawArc(
-                        color = s.accent,
+                        color = if (overLimit) OverLimitRed else s.accent,
                         startAngle = 135f, sweepAngle = 270f * frac, useCenter = false,
                         style = Stroke(width = stroke)
                     )
@@ -365,14 +406,14 @@ private fun SpeedReadout(speedKmh: Int) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = speedKmh.toString(),
-                        color = s.textPrimary,
+                        color = valueColor,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Medium,
                         fontFamily = s.fontFamily
                     )
                     Text(
                         text = "km/h",
-                        color = s.textSecondary,
+                        color = unitColor,
                         fontSize = 9.sp,
                         fontFamily = s.fontFamily
                     )
@@ -382,7 +423,7 @@ private fun SpeedReadout(speedKmh: Int) {
         else -> Column {
             Text(
                 text = speedKmh.toString(),
-                color = s.textPrimary,
+                color = valueColor,
                 fontSize = dimens().speedSize,
                 fontWeight = if (s.speedStyle == SpeedStyle.DigitalThin) FontWeight.ExtraLight
                              else FontWeight.Light,
@@ -390,7 +431,7 @@ private fun SpeedReadout(speedKmh: Int) {
             )
             Text(
                 text = if (s.uppercaseLabels) "KM/H" else "km/h",
-                color = s.textSecondary,
+                color = unitColor,
                 fontSize = 13.sp,
                 fontFamily = s.fontFamily,
                 modifier = Modifier.padding(top = 2.dp)
@@ -411,5 +452,51 @@ private fun RoundToggle(icon: ImageVector, label: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, label, tint = s.textPrimary, modifier = Modifier.size(18.dp))
+    }
+}
+
+/**
+ * Нижняя строка карточки, когда в неё встроено приложение.
+ *
+ * Слева — название встроенного приложения, справа кнопки: «вернуть
+ * спидометр» (карта сворачивается обратно в спидометр) и «сменить
+ * приложение». Строка идёт отдельным рядом ПОД поверхностью приложения,
+ * поэтому её кнопки всегда видны и нажимаются — поверх SurfaceView
+ * Compose рисовать не умеет.
+ */
+@Composable
+private fun EmbedCardBar(
+    app: AppInfo?,
+    onBackToSpeed: () -> Unit,
+    onFullscreen: () -> Unit,
+    onPickApp: () -> Unit
+) {
+    val s = LocalThemeSpec.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .background(s.carCardBg.copy(alpha = 0.95f))
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (app != null) {
+            AppIcon(app.icon, app.label, Modifier.size(18.dp))
+            Text(
+                text = app.label,
+                color = s.textSecondary,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontFamily = s.fontFamily,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Box(modifier = Modifier.weight(1f))
+        }
+        RoundToggle(Icons.Rounded.Speed, "Вернуть спидометр", onBackToSpeed)
+        RoundToggle(Icons.Rounded.OpenInFull, "На весь экран", onFullscreen)
+        RoundToggle(LauncherIcons.Cube, "Сменить приложение", onPickApp)
     }
 }

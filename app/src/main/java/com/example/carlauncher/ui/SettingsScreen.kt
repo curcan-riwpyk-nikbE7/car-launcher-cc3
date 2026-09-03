@@ -57,6 +57,9 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -620,7 +623,8 @@ private fun SliderTile(
     value: Float,
     range: ClosedFloatingPointRange<Float>,
     hint: String,
-    onChange: (Float) -> Unit
+    onChange: (Float) -> Unit,
+    unit: String = "dp"
 ) {
     val s = LocalThemeSpec.current
     Column(
@@ -642,7 +646,7 @@ private fun SliderTile(
             modifier = Modifier.padding(top = 10.dp)
         )
         Text(
-            text = "${value.roundToInt()} dp", color = s.accent, fontSize = 15.sp,
+            text = "${value.roundToInt()} $unit", color = s.accent, fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold, fontFamily = s.fontFamily,
             modifier = Modifier.padding(top = 4.dp)
         )
@@ -781,6 +785,34 @@ private fun ScreenTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+        // Лимит скорости читаем из SettingsStore напрямую, как NetworkTab:
+        // этих настроек нет в сигнатуре экрана, а тащить их через четыре
+        // слоя колбэков ради двух плиток не стоит.
+        item {
+            val limitOn = SettingsStore.speedLimitEnabled.value
+            SettingTile(
+                icon = Icons.Rounded.WarningAmber,
+                title = "Лимит скорости",
+                subtitle = if (limitOn)
+                    "Красный от ${SettingsStore.speedLimitKmh.value} км/ч"
+                else "Выключен",
+                accentIcon = limitOn,
+                trailing = { ThemedSwitch(limitOn) { SettingsStore.setSpeedLimitEnabled(it) } },
+                onClick = { SettingsStore.setSpeedLimitEnabled(!limitOn) },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+        item {
+            SliderTile(
+                icon = Icons.Rounded.Speed,
+                title = "Порог лимита",
+                value = SettingsStore.speedLimitKmh.value.toFloat(),
+                range = 40f..160f,
+                hint = "Выше порога — красные цифры и сигнал",
+                onChange = { SettingsStore.setSpeedLimitKmh(it.toInt()) },
+                unit = "км/ч"
+            )
+        }
         item {
             SettingTile(
                 icon = Icons.Rounded.DarkMode,
@@ -790,6 +822,33 @@ private fun ScreenTab(
                 trailing = { ThemedSwitch(nightMode, onNightMode) },
                 onClick = { onNightMode(!nightMode) },
                 modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+        // Заставка-часы: как и лимит скорости, читаем SettingsStore
+        // напрямую — этих настроек нет в сигнатуре экрана.
+        item {
+            val saverOn = SettingsStore.saverEnabled.value
+            SettingTile(
+                icon = Icons.Rounded.Schedule,
+                title = "Заставка-часы",
+                subtitle = if (saverOn)
+                    "Через ${SettingsStore.saverTimeoutMin.value} мин"
+                else "Выключена",
+                accentIcon = saverOn,
+                trailing = { ThemedSwitch(saverOn) { SettingsStore.setSaverEnabled(it) } },
+                onClick = { SettingsStore.setSaverEnabled(!saverOn) },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+        item {
+            SliderTile(
+                icon = Icons.Rounded.Timer,
+                title = "Таймер заставки",
+                value = SettingsStore.saverTimeoutMin.value.toFloat(),
+                range = 1f..10f,
+                hint = "Без действий — крупные часы",
+                onChange = { SettingsStore.setSaverTimeout(it.toInt()) },
+                unit = "мин"
             )
         }
         item {
