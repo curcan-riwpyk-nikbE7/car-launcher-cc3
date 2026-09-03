@@ -169,7 +169,7 @@ object NaviRouter {
      * @return true, если маршрут удалось передать навигатору
      */
     fun routeTo(context: Context, packageName: String, lat: Double, lon: Double): Boolean {
-        val intent: Intent? = when (packageName) {
+        val intent: Intent = when (packageName) {
             // Яндекс Навигатор: маршрут до координат
             "ru.yandex.yandexnavi" ->
                 Intent(
@@ -202,8 +202,8 @@ object NaviRouter {
                     Uri.parse("dgis://2gis.ru/route/from/to?to=$lat,$lon")
                 )
 
-            else -> null
-        } ?: return false
+            else -> return false
+        }
 
         val resolved = runCatching {
             context.packageManager.resolveActivity(intent, 0) != null
