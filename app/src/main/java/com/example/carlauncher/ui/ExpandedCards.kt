@@ -111,7 +111,11 @@ private fun ExpandedShell(
 fun ExpandedRadio(
     visible: Boolean,
     stationName: String,
-    frequency: String,
+    /**
+     * Частота станции, «87.5». null — радио ГУ её не сообщает,
+     * тогда показываем станцию крупно, а не выдуманную цифру.
+     */
+    frequency: String?,
     isPlaying: Boolean,
     onPrev: () -> Unit,
     onNext: () -> Unit,
@@ -125,15 +129,24 @@ fun ExpandedRadio(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(stationName, color = s.textSecondary, fontSize = 17.sp, fontFamily = s.fontFamily)
-            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 8.dp)) {
+            if (frequency != null) {
+                Text(stationName, color = s.textSecondary, fontSize = 17.sp, fontFamily = s.fontFamily)
+                Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(
+                        text = frequency, color = s.textPrimary, fontSize = 72.sp,
+                        fontWeight = FontWeight.Light, fontFamily = s.fontFamily
+                    )
+                    Text(
+                        text = " MHz", color = s.accent, fontSize = 20.sp,
+                        fontFamily = s.fontFamily, modifier = Modifier.padding(bottom = 14.dp)
+                    )
+                }
+            } else {
                 Text(
-                    text = frequency, color = s.textPrimary, fontSize = 72.sp,
-                    fontWeight = FontWeight.Light, fontFamily = s.fontFamily
-                )
-                Text(
-                    text = " MHz", color = s.accent, fontSize = 20.sp,
-                    fontFamily = s.fontFamily, modifier = Modifier.padding(bottom = 14.dp)
+                    text = stationName, color = s.textPrimary,
+                    fontSize = 44.sp, fontWeight = FontWeight.Light,
+                    fontFamily = s.fontFamily, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
             Row(

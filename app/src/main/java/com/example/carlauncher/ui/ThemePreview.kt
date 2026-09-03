@@ -239,7 +239,7 @@ private fun PreviewCards(spec: ThemeSpec, modifier: Modifier = Modifier) {
                 contentAlignment = Alignment.CenterStart
             ) {
                 Text(
-                    "87.50",
+                    "FM",
                     color = spec.accent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,

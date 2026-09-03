@@ -56,7 +56,12 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun RadioCard(
     stationName: String,
-    frequency: String = "87.50",
+    /**
+     * Частота станции, «87.5». null — радио ГУ не сообщает частоту,
+     * тогда число не рисуем: постоянная выдуманная «87.50» выглядела
+     * как живая, а это просто заглушка.
+     */
+    frequency: String? = null,
     isPlaying: Boolean = true,
     onOpen: () -> Unit,
     onPrev: () -> Unit,
@@ -121,27 +126,32 @@ fun RadioCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.clickable(onClick = onOpen)
                     )
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = frequency,
-                            color = s.accent,
-                            fontSize = 36.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = s.fontFamily
-                        )
-                        Text(
-                            text = " FM",
-                            color = s.textSecondary,
-                            fontSize = 15.sp,
-                            fontFamily = s.fontFamily,
-                            modifier = Modifier.padding(bottom = 3.dp)
-                        )
+                    if (frequency != null) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = frequency,
+                                color = s.accent,
+                                fontSize = 36.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontFamily = s.fontFamily
+                            )
+                            Text(
+                                text = " FM",
+                                color = s.textSecondary,
+                                fontSize = 15.sp,
+                                fontFamily = s.fontFamily,
+                                modifier = Modifier.padding(bottom = 3.dp)
+                            )
+                        }
                     }
                 }
 
-                // Шкала частот — как у штатного радио CC3.
-                // Одна цифра без шкалы не даёт понять, где мы в диапазоне.
-                FreqScale(frequency, s.accent, s.accent2, s.textDim)
+                // Шкала частот — как у штатного радио CC3. Есть смысл,
+                // только когда частота реально известна: метка без позиции
+                // — просто линейка.
+                if (frequency != null) {
+                    FreqScale(frequency, s.accent, s.accent2, s.textDim)
+                }
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),

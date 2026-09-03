@@ -62,6 +62,8 @@ import com.example.carlauncher.data.AppRepository
 fun AllAppsScreen(
     apps: List<AppInfo>,
     loading: Boolean = false,
+    /** Пакеты недавно запускавшихся приложений (строка над сеткой). */
+    recents: List<String> = emptyList(),
     onBack: () -> Unit = {},
     onAddToFavorites: (AppInfo) -> Unit = {}
 ) {
@@ -151,6 +153,77 @@ fun AllAppsScreen(
                         fontFamily = s.fontFamily,
                         modifier = Modifier.padding(start = 14.dp)
                     )
+                }
+            }
+
+            // Недавние приложения — одним рядом под поиском. Показываем,
+            // только когда ничего не ищем: при поиске строка только мешает.
+            // Высота ряда автоматически отнимается у сетки (BoxWithConstraints
+            // ниже считает ряды от оставшейся высоты).
+            val recentApps = remember(apps, recents, hidden, query) {
+                if (query.isNotBlank()) emptyList()
+                else recents.mapNotNull { pkg -> apps.firstOrNull { it.packageName == pkg } }
+                    .filter { it.packageName !in hidden }
+                    .distinctBy { it.packageName }
+                    .take(8)
+            }
+            if (recentApps.isNotEmpty()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+                    Text(
+                        text = "Недавние",
+                        color = s.textDim,
+                        fontSize = 12.sp,
+                        fontFamily = s.fontFamily,
+                        modifier = Modifier.padding(end = 12.dp)
+                    )
+                    recentApps.forEach { app ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(s.iconCorner))
+                                .combinedClickable(
+                                    onClick = { AppRepository.launch(context, app) },
+                                    onLongClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        actionsFor = app
+                                    }
+                                )
+                                .padding(vertical = 2.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(s.iconCorner))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = 0.12f),
+                                                Color.White.copy(alpha = 0.04f)
+                                            )
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AppIcon(app.icon, app.label, Modifier.size(34.dp))
+                            }
+                            Text(
+                                text = app.label,
+                                color = s.textDim,
+                                fontSize = 10.sp,
+                                fontFamily = s.fontFamily,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 3.dp)
+                            )
+                        }
+                    }
                 }
             }
 

@@ -11,6 +11,7 @@ import com.example.carlauncher.data.AppInfo
 import android.widget.Toast
 import com.example.carlauncher.data.AppRepository
 import com.example.carlauncher.data.PackageChangeEffect
+import com.example.carlauncher.data.SettingsStore
 import com.example.carlauncher.data.ShortcutStore
 import com.example.carlauncher.ui.AllAppsScreen
 import com.example.carlauncher.data.ThemeStore
@@ -26,6 +27,7 @@ class AllAppsActivity : ComponentActivity() {
         lifecycleScope.launch {
             loading = true
             apps = withContext(Dispatchers.IO) { AppRepository.loadApps(this@AllAppsActivity) }
+            recents = SettingsStore.recentApps()
             loading = false
         }
     }
@@ -44,6 +46,8 @@ class AllAppsActivity : ComponentActivity() {
 
     private var apps by mutableStateOf<List<AppInfo>>(emptyList())
     private var loading by mutableStateOf(true)
+    /** Недавно запускавшиеся приложения — для строки над сеткой. */
+    private var recents by mutableStateOf<List<String>>(emptyList())
 
     /**
      * Система возвращает бары после диалогов выбора и системных окон,
@@ -52,6 +56,8 @@ class AllAppsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         com.example.carlauncher.data.ImmersiveMode.applyFromSettings(this)
+        // Вернулись из запущенного приложения — оно теперь первое в «Недавних».
+        recents = SettingsStore.recentApps()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,6 +73,7 @@ class AllAppsActivity : ComponentActivity() {
                 AllAppsScreen(
                     apps = apps,
                     loading = loading,
+                    recents = recents,
                     onBack = { finish() },
                     onAddToFavorites = { app -> addToFirstFreeSlot(app) }
                 )

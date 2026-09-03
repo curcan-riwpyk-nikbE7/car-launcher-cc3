@@ -28,6 +28,13 @@ object TripComputer {
     val movingMs: MutableState<Long> = mutableStateOf(0L)
     /** Максимальная скорость, км/ч. */
     val maxKmh: MutableState<Int> = mutableStateOf(0)
+    /**
+     * Курс движения по GPS, градусы 0..359 (0 = север, 90 = восток).
+     * -1 — курс ещё не известен (не было движения с сигналом).
+     * Обновляется только в движении, поэтому на парковке показывает
+     * направление последней поездки.
+     */
+    val headingDeg: MutableState<Int> = mutableStateOf(-1)
 
     val averageKmh: Int
         get() {
@@ -47,8 +54,10 @@ object TripComputer {
      * Обновление по новой точке GPS.
      * Точки медленнее 2 км/ч игнорируем — иначе на стоянке
      * дрейф спутников накрутит лишние километры.
+     *
+     * @param bearing курс из Location (градусы от севера); -1 если недоступен
      */
-    fun onLocation(lat: Double, lon: Double, speedKmh: Int, timeMs: Long) {
+    fun onLocation(lat: Double, lon: Double, speedKmh: Int, timeMs: Long, bearing: Float = -1f) {
         if (speedKmh >= 2) {
             if (!lastLat.isNaN() && lastAt > 0L) {
                 val res = FloatArray(1)
@@ -64,6 +73,9 @@ object TripComputer {
                 }
             }
             if (speedKmh > maxKmh.value) maxKmh.value = speedKmh
+            if (bearing >= 0f && bearing < 360f) {
+                headingDeg.value = bearing.toInt()
+            }
             persist()
         }
         lastLat = lat; lastLon = lon; lastAt = timeMs

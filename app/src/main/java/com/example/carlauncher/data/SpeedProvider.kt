@@ -41,7 +41,8 @@ fun rememberSpeedKmh(): State<Int> {
                 speed.value = if (kmh < 2) 0 else kmh
                 TripComputer.onLocation(
                     location.latitude, location.longitude,
-                    speed.value, System.currentTimeMillis()
+                    speed.value, System.currentTimeMillis(),
+                    if (location.hasBearing()) location.bearing else -1f
                 )
             }
             @Deprecated("Deprecated in Java")

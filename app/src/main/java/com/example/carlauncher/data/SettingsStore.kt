@@ -38,6 +38,8 @@ object SettingsStore {
     private const val K_HOME_LON = "set_home_lon"
     private const val K_WORK_LAT = "set_work_lat"
     private const val K_WORK_LON = "set_work_lon"
+    private const val K_ANIMATIONS = "set_animations"
+    private const val K_RECENT = "recent_apps"
 
     private var prefs: android.content.SharedPreferences? = null
 
@@ -128,6 +130,21 @@ object SettingsStore {
     val workLat: MutableState<Double> = mutableStateOf(0.0)
     val workLon: MutableState<Double> = mutableStateOf(0.0)
 
+    /** Плавные появления панелей (шторка, плеер, развороты). */
+    val animationsEnabled: MutableState<Boolean> = mutableStateOf(true)
+
+    /** Недавно запускавшиеся приложения (для строки «Недавние»). */
+    fun recordRecent(packageName: String) {
+        val p = prefs ?: return
+        val cur = p.getString(K_RECENT, "").orEmpty()
+            .split("|").filter { it.isNotBlank() && it != packageName }
+        val next = (listOf(packageName) + cur).take(8)
+        p.edit().putString(K_RECENT, next.joinToString("|")).apply()
+    }
+
+    fun recentApps(): List<String> =
+        prefs?.getString(K_RECENT, "")?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+
     fun init(context: Context) {
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
@@ -162,6 +179,7 @@ object SettingsStore {
         homeLon.value = p.getFloat(K_HOME_LON, 0f).toDouble()
         workLat.value = p.getFloat(K_WORK_LAT, 0f).toDouble()
         workLon.value = p.getFloat(K_WORK_LON, 0f).toDouble()
+        animationsEnabled.value = p.getBoolean(K_ANIMATIONS, true)
     }
 
     fun setGestures(v: Boolean) { gesturesEnabled.value = v; prefs?.edit()?.putBoolean(K_GESTURES, v)?.apply() }
@@ -212,6 +230,10 @@ object SettingsStore {
     fun setWork(lat: Double, lon: Double) {
         workLat.value = lat; workLon.value = lon
         prefs?.edit()?.putFloat(K_WORK_LAT, lat.toFloat())?.putFloat(K_WORK_LON, lon.toFloat())?.apply()
+    }
+    fun setAnimationsEnabled(v: Boolean) {
+        animationsEnabled.value = v
+        prefs?.edit()?.putBoolean(K_ANIMATIONS, v)?.apply()
     }
 
     /** Сброс всех настроек лаунчера, включая ярлыки и тему. */

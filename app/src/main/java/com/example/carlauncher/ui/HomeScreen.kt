@@ -104,6 +104,15 @@ fun HomeScreen(
     var pickerTitle by remember { mutableStateOf("") }
 
     val nowPlaying by rememberNowPlaying(revision)
+    // Имя станции для карточек радио: если играет радио-приложение
+    // и его сессия отдала название — берём его; иначе подпись
+    // радио-приложения из настроек. Частоту радио ГУ не сообщает,
+    // поэтому везде рисуем станцию, а не выдуманную «87.50».
+    val radioStationName = nowPlaying.pkg
+        ?.takeIf { AppRepository.RADIO.contains(it) }
+        ?.let { nowPlaying.title }
+        ?.takeIf { it.isNotBlank() && it != "Неизвестный трек" }
+        ?: SettingsStore.radioName.value
     val feedback = rememberGestureFeedback()
 
     // Часы для панели
@@ -207,8 +216,13 @@ fun HomeScreen(
 
     // Пока открыт развёрнутый блок (плеер, шторка, инфо) — таймер стоит:
     // заставка не должна вылезать под пальцами.
+    // То же, когда в карточку встроено приложение (навигатор, видео):
+    // экран «засыпает» под маршрутом — водитель его не трогает,
+    // а смотреть на часы вместо дороги нельзя.
+    val embeddedAppActive = speedApp != null &&
+        SettingsStore.speedCardEmbedded.value && !embedFailed
     val busyUi = shadeOpen || playerExpanded || radioExpanded ||
-        carExpanded || carInfoOpen
+        carExpanded || carInfoOpen || embeddedAppActive
     DisposableEffect(busyUi) {
         if (!busyUi) lastInteraction = SystemClock.uptimeMillis()
         onDispose {}
@@ -474,7 +488,7 @@ fun HomeScreen(
                 )
 
                 RadioCard(
-                    stationName = SettingsStore.radioName.value,
+                    stationName = radioStationName,
                     isPlaying = nowPlaying.isPlaying,
                     onOpen = { AppRepository.launchFirstAvailable(context, AppRepository.RADIO) },
                     onPrev = { MediaControl.previous(context) },
@@ -513,7 +527,7 @@ fun HomeScreen(
                 )
 
                 FmRadioCard(
-                    frequency = "87.50",
+                    stationName = radioStationName,
                     onPrev = { AppRepository.launchFirstAvailable(context, AppRepository.RADIO) },
                     onNext = { AppRepository.launchFirstAvailable(context, AppRepository.RADIO) },
                     onOpen = { AppRepository.launchFirstAvailable(context, AppRepository.RADIO) },
@@ -526,8 +540,11 @@ fun HomeScreen(
                     horizontalAlignment = Alignment.End
                 ) {
                     HeroClockPanel(date = now)
+                    val heading = TripComputer.headingDeg.value
                     CompassCard(
-                        direction = "North\nWest",
+                        direction = compassRose(heading),
+                        // Направление движения по GPS; «—», если машина ещё
+                        // ни разу не ехала с пойманным сигналом.
                         onClick = {
                             AppRepository.launchFirstAvailable(context, AppRepository.NAVIGATION)
                         },
@@ -754,8 +771,8 @@ fun HomeScreen(
 
         ExpandedRadio(
             visible = radioExpanded,
-            stationName = SettingsStore.radioName.value,
-            frequency = "87.50",
+            stationName = radioStationName,
+            frequency = null,
             isPlaying = nowPlaying.isPlaying,
             onPrev = { MediaControl.previous(context) },
             onNext = { MediaControl.next(context) },
@@ -859,6 +876,17 @@ private fun smartPlayPause(context: android.content.Context) {
  * время приглушена отдельным эффектом. Любое касание будит лаунчер —
  * поэтому здесь нет ни кнопок, ни подсказок: тап в любом месте.
  */
+/**
+ * Румб по курсу движения (0° — север, 90° — восток).
+ * heading < 0 — курс ещё не известен (не было движения с GPS).
+ */
+private fun compassRose(heading: Int): String {
+    if (heading < 0) return "—\nкурс"
+    val names = listOf("С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ")
+    val idx = ((heading + 22) / 45).toInt() % 8
+    return "${names[idx]}\n$heading°"
+}
+
 @Composable
 private fun ScreenSaverClock(time: String, date: String, onWake: () -> Unit) {
     val s = LocalThemeSpec.current

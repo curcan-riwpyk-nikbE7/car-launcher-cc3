@@ -85,8 +85,12 @@ fun NaviQuickOverlay(
             hasPoint = homePoint() != null,
             onClick = {
                 val p = homePoint()
-                if (p != null) NaviRouter.routeTo(context, navigatorPkg, p.lat, p.lon)
-                else AppRepository.launchPackage(context, navigatorPkg)
+                // Не все навигаторы умеют строить маршрут по координатам
+                // (у Navitel/Sygic нет такой схемы) — если не вышло,
+                // просто открываем навигатор, чтобы не «молчать».
+                if (p == null || !NaviRouter.routeTo(context, navigatorPkg, p.lat, p.lon)) {
+                    AppRepository.launchPackage(context, navigatorPkg)
+                }
             },
             onLongClick = {
                 val p = currentGps()
@@ -99,8 +103,9 @@ fun NaviQuickOverlay(
             hasPoint = workPoint() != null,
             onClick = {
                 val p = workPoint()
-                if (p != null) NaviRouter.routeTo(context, navigatorPkg, p.lat, p.lon)
-                else AppRepository.launchPackage(context, navigatorPkg)
+                if (p == null || !NaviRouter.routeTo(context, navigatorPkg, p.lat, p.lon)) {
+                    AppRepository.launchPackage(context, navigatorPkg)
+                }
             },
             onLongClick = {
                 val p = currentGps()

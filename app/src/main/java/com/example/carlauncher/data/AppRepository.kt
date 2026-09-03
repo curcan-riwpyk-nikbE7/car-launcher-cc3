@@ -44,6 +44,7 @@ object AppRepository {
 
     /** Запуск конкретной активности. */
     fun launch(context: Context, app: AppInfo) {
+        SettingsStore.recordRecent(app.packageName)
         val intent = Intent(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_LAUNCHER)
             .setClassName(app.packageName, app.activityName)
@@ -57,6 +58,7 @@ object AppRepository {
 
     /** Запуск по имени пакета. true — если удалось. */
     fun launchPackage(context: Context, packageName: String): Boolean {
+        SettingsStore.recordRecent(packageName)
         // Для карт и навигаторов открываем сразу карту, а не стартовый экран
         val intent = AppIntents.bestIntent(context, packageName) ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

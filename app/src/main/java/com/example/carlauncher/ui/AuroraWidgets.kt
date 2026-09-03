@@ -129,10 +129,17 @@ fun CompassCard(direction: String, onClick: () -> Unit, modifier: Modifier = Mod
     }
 }
 
-/** Карточка FM-радио с частотой и стрелками перелистывания. */
+/**
+ * Карточка FM-радио со стрелками перелистывания.
+ *
+ * Частоту радио ГУ не сообщает, поэтому по умолчанию в центре
+ * показываем название станции/источника, а не выдуманную «87.50».
+ * Число появляется, только если частота реально известна.
+ */
 @Composable
 fun FmRadioCard(
-    frequency: String,
+    stationName: String = "",
+    frequency: String? = null,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onOpen: () -> Unit,
@@ -173,7 +180,10 @@ fun FmRadioCard(
             Text("FM", color = s.textPrimary, fontSize = 14.sp,
                 fontWeight = FontWeight.Medium, fontFamily = s.fontFamily)
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
                 Icon(
                     Icons.Rounded.ChevronLeft, "Предыдущая",
                     tint = s.textPrimary,
@@ -183,13 +193,23 @@ fun FmRadioCard(
                         .clickable(onClick = onPrev)
                         .padding(6.dp)
                 )
+                val center = when {
+                    stationName.isNotBlank() -> stationName
+                    frequency != null -> frequency
+                    else -> "—"
+                }
                 Text(
-                    text = frequency,
+                    text = center,
                     color = s.textPrimary,
-                    fontSize = 34.sp,
+                    fontSize = if (stationName.isNotBlank()) 17.sp else 34.sp,
                     fontWeight = FontWeight.Medium,
                     fontFamily = s.fontFamily,
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
                 )
                 Icon(
                     Icons.Rounded.ChevronRight, "Следующая",
@@ -202,8 +222,15 @@ fun FmRadioCard(
                 )
             }
 
-            Text("MHz", color = s.textPrimary, fontSize = 14.sp,
-                fontWeight = FontWeight.Medium, fontFamily = s.fontFamily)
+            if (frequency != null) {
+                Text("MHz", color = s.textPrimary, fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium, fontFamily = s.fontFamily)
+            } else {
+                // Без частоты нижняя подпись пустая — иначе «FM/MHz»
+                // сверху и снизу дублировали друг друга.
+                Text(" ", color = s.textPrimary, fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium, fontFamily = s.fontFamily)
+            }
         }
     }
 }

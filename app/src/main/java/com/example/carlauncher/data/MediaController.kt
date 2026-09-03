@@ -43,7 +43,9 @@ data class NowPlaying(
      * В этом случае обложки нет и метаданные приходят по AVRCP —
      * поэтому рисуем карточку-телефон, как штатный лаунчер.
      */
-    val isBluetooth: Boolean = false
+    val isBluetooth: Boolean = false,
+    /** Пакет приложения, владеющего активной медиа-сессией. */
+    val pkg: String? = null
 )
 
 object MediaControl {
@@ -96,7 +98,8 @@ object MediaControl {
                     .coerceAtLeast(0L),
                 positionMs = (st?.position ?: 0L).coerceAtLeast(0L),
                 positionAt = android.os.SystemClock.elapsedRealtime(),
-                isBluetooth = isBluetoothSource(controller.packageName, md)
+                isBluetooth = isBluetoothSource(controller.packageName, md),
+                pkg = controller.packageName
             )
         } catch (e: Throwable) {
             NowPlaying()
