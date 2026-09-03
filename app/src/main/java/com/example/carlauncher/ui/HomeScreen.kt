@@ -6,6 +6,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.SystemClock
 import android.view.WindowManager
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -805,7 +808,9 @@ fun HomeScreen(
 
         // Заставка-часы — поверх всего, включая жесты: пока она видна,
         // лаунчер должен спать. Любое касание — и лаунчер проснулся.
-        if (saverVisible) {
+        // Появляется плавно, а не «вспыхивает» — на тёмном фоне резкое
+        // появление цифр бьёт по глазам ночью.
+        AnimatedVisibility(visible = saverVisible, enter = fadeIn(tween(450))) {
             ScreenSaverClock(
                 time = timeFmt.format(now),
                 date = saverDateFmt.format(now),

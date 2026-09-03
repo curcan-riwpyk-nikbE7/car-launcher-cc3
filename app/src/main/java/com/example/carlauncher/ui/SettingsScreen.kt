@@ -230,13 +230,14 @@ fun SettingsScreen(
                     SettingsTab.Screen -> ScreenTab(
                         keepScreenOn, onKeepScreenOn, immersive, onImmersive,
                         showSpeed, onShowSpeed, nightMode, onNightMode,
-                        hasWallpaper, onPickWallpaper, onClearWallpaper
+                        hasWallpaper, onPickWallpaper, onClearWallpaper,
+                        speedMode, onSpeedMode
                     )
                     SettingsTab.System -> SystemTab(
                         hasNotificationAccess, onNotificationAccess,
                         btAutoPlay, onBtAutoPlay, onPickBtApp, onOpenCarSettings,
                         onOpenDiagnostics, btRevision,
-                        speedMode, onSpeedMode, onReset
+                        onReset
                     )
                 }
             }
@@ -738,13 +739,16 @@ private fun ShortcutsTab(
 
 // ──────────────────────────── Вкладка «Экран» ───────────────────────────────
 
+// ──────────────────────────── Вкладка «Экран» ───────────────────────────────
+
 @Composable
 private fun ScreenTab(
     keepScreenOn: Boolean, onKeepScreenOn: (Boolean) -> Unit,
     immersive: Boolean, onImmersive: (Boolean) -> Unit,
     showSpeed: Boolean, onShowSpeed: (Boolean) -> Unit,
     nightMode: Boolean, onNightMode: (Boolean) -> Unit,
-    hasWallpaper: Boolean, onPickWallpaper: () -> Unit, onClearWallpaper: () -> Unit
+    hasWallpaper: Boolean, onPickWallpaper: () -> Unit, onClearWallpaper: () -> Unit,
+    speedMode: String, onSpeedMode: (String) -> Unit
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
@@ -752,6 +756,9 @@ private fun ScreenTab(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+
+        // ── Дисплей ──
+
         item {
             SettingTile(
                 icon = Icons.Rounded.Brightness6,
@@ -763,6 +770,7 @@ private fun ScreenTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+
         item {
             SettingTile(
                 icon = Icons.Rounded.Fullscreen,
@@ -774,6 +782,32 @@ private fun ScreenTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+
+        item {
+            SettingTile(
+                icon = Icons.Rounded.DarkMode,
+                title = "Ночной режим",
+                subtitle = if (nightMode) "Притухает после заката" else "Выключен",
+                accentIcon = nightMode,
+                trailing = { ThemedSwitch(nightMode, onNightMode) },
+                onClick = { onNightMode(!nightMode) },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+
+        item {
+            SettingTile(
+                icon = Icons.Rounded.Wallpaper,
+                title = "Обои",
+                subtitle = if (hasWallpaper) "Своя картинка" else "Градиент темы",
+                accentIcon = hasWallpaper,
+                onClick = { if (hasWallpaper) onClearWallpaper() else onPickWallpaper() },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+
+        // ── Показатели ──
+
         item {
             SettingTile(
                 icon = Icons.Rounded.Speed,
@@ -785,9 +819,7 @@ private fun ScreenTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
-        // Лимит скорости читаем из SettingsStore напрямую, как NetworkTab:
-        // этих настроек нет в сигнатуре экрана, а тащить их через четыре
-        // слоя колбэков ради двух плиток не стоит.
+
         item {
             val limitOn = SettingsStore.speedLimitEnabled.value
             SettingTile(
@@ -802,6 +834,7 @@ private fun ScreenTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+
         item {
             SliderTile(
                 icon = Icons.Rounded.Speed,
@@ -813,19 +846,49 @@ private fun ScreenTab(
                 unit = "км/ч"
             )
         }
+
+        // ── Встроенные приложения ──
+
         item {
             SettingTile(
-                icon = Icons.Rounded.DarkMode,
-                title = "Ночной режим",
-                subtitle = if (nightMode) "Притухает после заката" else "Выключен",
-                accentIcon = nightMode,
-                trailing = { ThemedSwitch(nightMode, onNightMode) },
-                onClick = { onNightMode(!nightMode) },
+                icon = Icons.Rounded.VerticalSplit,
+                title = "Карточка спидометра",
+                subtitle = when (speedMode) {
+                    "freeform" -> "Приложение в карточке"
+                    "split" -> "Разделённый экран"
+                    else -> "На весь экран"
+                },
+                accentIcon = speedMode != "full",
+                onClick = {
+                    // Перебираем режимы по кругу
+                    onSpeedMode(
+                        when (speedMode) {
+                            "freeform" -> "split"
+                            "split" -> "full"
+                            else -> "freeform"
+                        }
+                    )
+                },
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
-        // Заставка-часы: как и лимит скорости, читаем SettingsStore
-        // напрямую — этих настроек нет в сигнатуре экрана.
+
+        item {
+            val pw = SettingsStore.prewarmWindow.value
+            SettingTile(
+                icon = Icons.Rounded.OpenInFull,
+                title = "Окно: видео и карты",
+                subtitle = if (pw) "Сначала на весь экран, потом в окно"
+                else "Сразу в окно (может быть пусто)",
+                accentIcon = pw,
+                trailing = { ThemedSwitch(pw) { SettingsStore.setPrewarm(it) } },
+                onClick = { SettingsStore.setPrewarm(!pw) },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+
+        // ── Сон ──
+
         item {
             val saverOn = SettingsStore.saverEnabled.value
             SettingTile(
@@ -840,6 +903,7 @@ private fun ScreenTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+
         item {
             SliderTile(
                 icon = Icons.Rounded.Timer,
@@ -849,16 +913,6 @@ private fun ScreenTab(
                 hint = "Без действий — крупные часы",
                 onChange = { SettingsStore.setSaverTimeout(it.toInt()) },
                 unit = "мин"
-            )
-        }
-        item {
-            SettingTile(
-                icon = Icons.Rounded.Wallpaper,
-                title = "Обои",
-                subtitle = if (hasWallpaper) "Своя картинка" else "Градиент темы",
-                accentIcon = hasWallpaper,
-                onClick = { if (hasWallpaper) onClearWallpaper() else onPickWallpaper() },
-                modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
     }
@@ -876,8 +930,6 @@ private fun SystemTab(
     onOpenCarSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     revision: Int,
-    speedMode: String,
-    onSpeedMode: (String) -> Unit,
     onReset: () -> Unit
 ) {
     var confirmReset by remember { mutableStateOf(false) }
@@ -888,6 +940,43 @@ private fun SystemTab(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+
+        // ── Автомобиль ──
+
+        item {
+            SettingTile(
+                icon = Icons.Rounded.DirectionsCar,
+                title = "Автомобиль и звук",
+                subtitle = "Кнопки руля, громкость, яркость",
+                accentIcon = true,
+                onClick = onOpenCarSettings,
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+
+        item {
+            // Диагностика: какие датчики движения есть на этом ГУ.
+            // От этого зависит, сможет ли машина на карточке крениться
+            // в поворотах или будет только покачиваться от скорости.
+            val ctx = LocalContext.current
+            var showSensors by remember { mutableStateOf(false) }
+            val sensors = remember { MotionSensors.describe(ctx) }
+            val hasAccel = remember { MotionSensors.hasAccelerometer(ctx) }
+
+            SettingTile(
+                icon = Icons.Rounded.Speed,
+                title = "Датчики движения",
+                subtitle = if (showSensors) sensors.joinToString("\n")
+                else if (hasAccel) "Акселерометр есть — нажмите"
+                else "Нет акселерометра — нажмите",
+                accentIcon = hasAccel,
+                onClick = { showSensors = !showSensors },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+
+        // ── Права и доступы ──
+
         item {
             SettingTile(
                 icon = Icons.Rounded.Notifications,
@@ -898,6 +987,7 @@ private fun SystemTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+
         item {
             // Показывает, что именно система разрешила. Без него
             // «не работает встраивание» — слишком общая жалоба:
@@ -911,16 +1001,9 @@ private fun SystemTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
-        item {
-            SettingTile(
-                icon = Icons.Rounded.DirectionsCar,
-                title = "Автомобиль и звук",
-                subtitle = "Кнопки руля, громкость, яркость",
-                accentIcon = true,
-                onClick = onOpenCarSettings,
-                modifier = Modifier.fillMaxWidth().height(196.dp)
-            )
-        }
+
+        // ── Bluetooth-музыка ──
+
         item {
             SettingTile(
                 icon = Icons.Rounded.Bluetooth,
@@ -932,6 +1015,7 @@ private fun SystemTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+
         item {
             // Пакет BT-приложения у каждого производителя свой, угадать
             // его списком получается не всегда. Проще дать выбрать руками
@@ -958,42 +1042,9 @@ private fun SystemTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
-        item {
-            SettingTile(
-                icon = Icons.Rounded.VerticalSplit,
-                title = "Карточка спидометра",
-                subtitle = when (speedMode) {
-                    "freeform" -> "Приложение в карточке"
-                    "split" -> "Разделённый экран"
-                    else -> "На весь экран"
-                },
-                accentIcon = speedMode != "full",
-                onClick = {
-                    // Перебираем режимы по кругу
-                    onSpeedMode(
-                        when (speedMode) {
-                            "freeform" -> "split"
-                            "split" -> "full"
-                            else -> "freeform"
-                        }
-                    )
-                },
-                modifier = Modifier.fillMaxWidth().height(196.dp)
-            )
-        }
-        item {
-            val pw = SettingsStore.prewarmWindow.value
-            SettingTile(
-                icon = Icons.Rounded.OpenInFull,
-                title = "Окно: видео и карты",
-                subtitle = if (pw) "Сначала на весь экран, потом в окно"
-                else "Сразу в окно (может быть пусто)",
-                accentIcon = pw,
-                trailing = { ThemedSwitch(pw) { SettingsStore.setPrewarm(it) } },
-                onClick = { SettingsStore.setPrewarm(!pw) },
-                modifier = Modifier.fillMaxWidth().height(196.dp)
-            )
-        }
+
+        // ── Приложения ──
+
         item {
             val ctx2 = LocalContext.current
             val store = remember { com.example.carlauncher.data.ShortcutStore(ctx2) }
@@ -1010,38 +1061,9 @@ private fun SystemTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
-        item {
-            SettingTile(
-                icon = Icons.Rounded.RestartAlt,
-                title = if (confirmReset) "Точно сбросить?" else "Сброс настроек",
-                subtitle = if (confirmReset) "Нажмите ещё раз" else "Всё к умолчанию",
-                accentIcon = confirmReset,
-                onClick = {
-                    if (confirmReset) { onReset(); confirmReset = false } else confirmReset = true
-                },
-                modifier = Modifier.fillMaxWidth().height(196.dp)
-            )
-        }
-        item {
-            // Диагностика: какие датчики движения есть на этом ГУ.
-            // От этого зависит, сможет ли машина на карточке крениться
-            // в поворотах или будет только покачиваться от скорости.
-            val ctx = LocalContext.current
-            var showSensors by remember { mutableStateOf(false) }
-            val sensors = remember { MotionSensors.describe(ctx) }
-            val hasAccel = remember { MotionSensors.hasAccelerometer(ctx) }
 
-            SettingTile(
-                icon = Icons.Rounded.Speed,
-                title = "Датчики движения",
-                subtitle = if (showSensors) sensors.joinToString("\n")
-                else if (hasAccel) "Акселерометр есть — нажмите"
-                else "Нет акселерометра — нажмите",
-                accentIcon = hasAccel,
-                onClick = { showSensors = !showSensors },
-                modifier = Modifier.fillMaxWidth().height(196.dp)
-            )
-        }
+        // ── Сервис ──
+
         item {
             val ctx3 = LocalContext.current
             val scope3 = rememberCoroutineScope()
@@ -1106,6 +1128,7 @@ private fun SystemTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+
         item {
             // Версия читается из пакета, а не пишется руками: строка
             // «1.0» висела здесь начиная с первой сборки и врала
@@ -1123,9 +1146,21 @@ private fun SystemTab(
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }
+
+        item {
+            SettingTile(
+                icon = Icons.Rounded.RestartAlt,
+                title = if (confirmReset) "Точно сбросить?" else "Сброс настроек",
+                subtitle = if (confirmReset) "Нажмите ещё раз" else "Всё к умолчанию",
+                accentIcon = confirmReset,
+                onClick = {
+                    if (confirmReset) { onReset(); confirmReset = false } else confirmReset = true
+                },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
     }
 }
-
 /**
  * Переключатель.
  *
