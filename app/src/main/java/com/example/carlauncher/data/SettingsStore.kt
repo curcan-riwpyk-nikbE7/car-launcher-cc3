@@ -34,6 +34,10 @@ object SettingsStore {
     private const val K_SAVER_ENABLED = "set_saver_enabled"
     private const val K_SAVER_TIMEOUT = "set_saver_timeout_min"
     private const val K_SPEED_EMBEDDED = "set_speed_card_embedded"
+    private const val K_HOME_LAT = "set_home_lat"
+    private const val K_HOME_LON = "set_home_lon"
+    private const val K_WORK_LAT = "set_work_lat"
+    private const val K_WORK_LON = "set_work_lon"
 
     private var prefs: android.content.SharedPreferences? = null
 
@@ -118,6 +122,12 @@ object SettingsStore {
      */
     val speedCardEmbedded: MutableState<Boolean> = mutableStateOf(false)
 
+    /** Координаты «дома» и «работы» для быстрых маршрутов (0 = не задано). */
+    val homeLat: MutableState<Double> = mutableStateOf(0.0)
+    val homeLon: MutableState<Double> = mutableStateOf(0.0)
+    val workLat: MutableState<Double> = mutableStateOf(0.0)
+    val workLon: MutableState<Double> = mutableStateOf(0.0)
+
     fun init(context: Context) {
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
@@ -148,6 +158,10 @@ object SettingsStore {
         saverEnabled.value = p.getBoolean(K_SAVER_ENABLED, true)
         saverTimeoutMin.value = p.getInt(K_SAVER_TIMEOUT, 2).coerceIn(1, 15)
         speedCardEmbedded.value = p.getBoolean(K_SPEED_EMBEDDED, false)
+        homeLat.value = p.getFloat(K_HOME_LAT, 0f).toDouble()
+        homeLon.value = p.getFloat(K_HOME_LON, 0f).toDouble()
+        workLat.value = p.getFloat(K_WORK_LAT, 0f).toDouble()
+        workLon.value = p.getFloat(K_WORK_LON, 0f).toDouble()
     }
 
     fun setGestures(v: Boolean) { gesturesEnabled.value = v; prefs?.edit()?.putBoolean(K_GESTURES, v)?.apply() }
@@ -190,6 +204,14 @@ object SettingsStore {
     fun setSpeedCardEmbedded(v: Boolean) {
         speedCardEmbedded.value = v
         prefs?.edit()?.putBoolean(K_SPEED_EMBEDDED, v)?.apply()
+    }
+    fun setHome(lat: Double, lon: Double) {
+        homeLat.value = lat; homeLon.value = lon
+        prefs?.edit()?.putFloat(K_HOME_LAT, lat.toFloat())?.putFloat(K_HOME_LON, lon.toFloat())?.apply()
+    }
+    fun setWork(lat: Double, lon: Double) {
+        workLat.value = lat; workLon.value = lon
+        prefs?.edit()?.putFloat(K_WORK_LAT, lat.toFloat())?.putFloat(K_WORK_LON, lon.toFloat())?.apply()
     }
 
     /** Сброс всех настроек лаунчера, включая ярлыки и тему. */

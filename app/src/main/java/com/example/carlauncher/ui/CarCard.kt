@@ -266,6 +266,14 @@ fun CarCard(
                         modifier = Modifier.fillMaxSize(),
                         onFailed = onEmbedFailed
                     )
+                    // Быстрые маршруты ПОВЕРХ карты, как у Reglink/CC3.
+                    // Показываются только для навигаторов; Compose рисует
+                    // поверх SurfaceView (тот живёт в отдельном Surface
+                    // под окном лаунчера), поэтому кнопки видны и нажимаемы.
+                    NaviQuickOverlay(
+                        modifier = Modifier.align(Alignment.TopStart),
+                        navigatorPkg = embeddedPackage
+                    )
                 }
                 EmbedCardBar(
                     app = speedApp,

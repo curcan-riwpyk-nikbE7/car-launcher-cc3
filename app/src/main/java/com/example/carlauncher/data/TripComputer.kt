@@ -69,6 +69,10 @@ object TripComputer {
         lastLat = lat; lastLon = lon; lastAt = timeMs
     }
 
+    /** Последние известные координаты GPS (null, если фикса ещё не было). */
+    fun currentPosition(): Pair<Double, Double>? =
+        if (!lastLat.isNaN() && !lastLon.isNaN()) lastLat to lastLon else null
+
     fun reset() {
         distanceM.value = 0f
         movingMs.value = 0L
