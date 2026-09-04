@@ -178,12 +178,25 @@ private fun collect(context: Context): List<Row3> {
         "нужно, чтобы карта верстались по размеру блока"
     )
 
-    val freeform = FreeformLauncher.isAvailable(context)
+    // Плавающие окна: «поддержка ГУ» и «флаг» — разные вещи.
+    // Флаг enable_freeform_support мы сами включаем при старте (у кого
+    // есть право), поэтому «включены» по нему — не ответ. Решает фича
+    // устройства: если прошивка её не заявляет, система игнорирует
+    // и флаг, и границы окна — приложение уходит на весь экран.
+    val ffFeature = FreeformLauncher.hasFeature(context)
+    val ffFlag = FreeformLauncher.isEnabledInSettings(context)
     out += Row3(
-        "Плавающие окна",
-        if (freeform) "включены" else "выключены",
-        if (freeform) State.Good else State.Info,
-        "запасной путь, если встраивание недоступно"
+        "Окна: поддержка ГУ",
+        if (ffFeature) "есть" else "нет",
+        if (ffFeature) State.Good else State.Bad,
+        if (ffFeature) "прошивка умеет плавающие окна"
+        else "система игнорирует границы — окно не создать"
+    )
+    out += Row3(
+        "Окна: флаг",
+        if (ffFlag) "включён" else "выключен",
+        State.Info,
+        "мы включаем его сами при старте — погоды не делает"
     )
 
     // ─── питание автомобиля ───

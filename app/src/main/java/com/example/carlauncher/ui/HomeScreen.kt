@@ -285,20 +285,33 @@ fun HomeScreen(
         android.graphics.Point(dm.widthPixels, dm.heightPixels)
     }
 
-    // Запуск в плавающем окне выбранной области
     val launchFreeform: (String) -> Unit = { pkg ->
-        val area = runCatching {
-            FreeformLauncher.Area.valueOf(SettingsStore.speedArea.value)
-        }.getOrDefault(FreeformLauncher.Area.RightColumn)
-        val b = FreeformLauncher.boundsFor(area, cardBounds, screenPx.x, screenPx.y)
-        if (b.isEmpty) AppRepository.launchPackage(context, pkg)
-        else FreeformLauncher.launchInBounds(
-            context, pkg, b,
-            // Видео и карты сначала открываем на весь экран, иначе они
-            // не желают рисоваться в окне. Для остальных приложений
-            // лишний шаг не нужен — он заметен глазом.
-            prewarm = SettingsStore.prewarmWindow.value && FreeformLauncher.needsPrewarm(pkg)
-        )
+        // Сначала проверяем, что ГУ ВООБЩЕ заявляет поддержку плавающих
+        // окон (фича прошивки). Флага enable_freeform_support мало: без
+        // фичи система молча игнорирует и границы, и режим — приложение
+        // уходит на весь экран после лишнего prewarm-мигания. Поэтому
+        // без фичи сразу честно открываем на весь экран и говорим почему.
+        if (!FreeformLauncher.hasFeature(context)) {
+            android.widget.Toast.makeText(
+                context,
+                "ГУ не умеет плавающие окна — открываю на весь экран",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            AppRepository.launchPackage(context, pkg)
+        } else {
+            val area = runCatching {
+                FreeformLauncher.Area.valueOf(SettingsStore.speedArea.value)
+            }.getOrDefault(FreeformLauncher.Area.RightColumn)
+            val b = FreeformLauncher.boundsFor(area, cardBounds, screenPx.x, screenPx.y)
+            if (b.isEmpty) AppRepository.launchPackage(context, pkg)
+            else FreeformLauncher.launchInBounds(
+                context, pkg, b,
+                // Видео и карты сначала открываем на весь экран, иначе
+                // они не желают рисоваться в окне. Для остальных
+                // приложений лишний шаг не нужен — он заметен глазом.
+                prewarm = SettingsStore.prewarmWindow.value && FreeformLauncher.needsPrewarm(pkg)
+            )
+        }
     }
 
     // Тап по спидометру.
@@ -319,11 +332,9 @@ fun HomeScreen(
     val onSpeedClick: () -> Unit = {
         val a = speedApp
         if (a != null) {
-            if (FreeformLauncher.isAvailable(context)) {
-                launchFreeform(a.packageName)
-            } else {
-                AppRepository.launch(context, a)
-            }
+            // launchFreeform сам решает: ГУ умеет окна — окно по границам
+            // карточки, не умеет — сразу полный экран с подсказкой.
+            launchFreeform(a.packageName)
         } else {
             pickerSlot = ShortcutStore.SLOT_SPEED
             pickerTitle = "Что показывать вместо спидометра"
@@ -838,11 +849,11 @@ fun HomeScreen(
                 // окном по границам карточки (на главном дисплее, где
                 // приложение гарантированно рисует). Встроенный режим
                 // не включаем — на прошивках CC3 он даёт чёрный экран.
+                // Если ГУ не умеет окна — launchFreeform сам откроет
+                // приложение на весь экран и предупредит.
                 if (slot == ShortcutStore.SLOT_SPEED) {
                     embedFailed = false
-                    if (FreeformLauncher.isAvailable(context)) {
-                        launchFreeform(app.packageName)
-                    }
+                    launchFreeform(app.packageName)
                 }
             },
             onReset = { store.clear(slot); revision++; pickerSlot = null },

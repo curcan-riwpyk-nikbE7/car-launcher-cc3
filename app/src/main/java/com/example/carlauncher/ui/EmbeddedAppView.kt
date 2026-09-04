@@ -194,6 +194,16 @@ private class EmbeddedSession(
                 // Пробрасывает касания в приложение
                 flags = flags or (1 shl 6)   // VIRTUAL_DISPLAY_FLAG_SUPPORTS_TOUCH
             }
+            // TRUSTED (0x8): дисплей, которому SurfaceFlinger доверяет
+            // чужие окна. Без него (и права ADD_TRUSTED_DISPLAY) часть
+            // прошивок молча не пускает приложения на виртуальный
+            // дисплей — код отрабатывает, а карточка остаётся чёрной.
+            // Флаг константой: в SDK он скрыт (android.view.Display).
+            if (context.checkSelfPermission("android.permission.ADD_TRUSTED_DISPLAY") ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                flags = flags or 0x8
+            }
 
             val vd = dm.createVirtualDisplay(
                 "CarLauncherEmbed",
