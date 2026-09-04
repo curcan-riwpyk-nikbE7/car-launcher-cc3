@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -40,8 +41,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -57,6 +60,9 @@ import androidx.compose.ui.unit.sp
 import com.example.carlauncher.R
 import com.example.carlauncher.data.AppInfo
 import com.example.carlauncher.data.SettingsStore
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * Красный «превышения» — тот же тон, что у стоп-полосы на картинке
@@ -381,7 +387,7 @@ private fun SpeedWidget(
     }
 }
 
-/** Собственно цифры или кольцо. */
+/** Собственно цифры, кольцо или стрелочный циферблат. */
 @Composable
 private fun SpeedReadout(speedKmh: Int) {
     val s = LocalThemeSpec.current
@@ -394,7 +400,7 @@ private fun SpeedReadout(speedKmh: Int) {
     val valueColor = if (overLimit) OverLimitRed else s.textPrimary
     val unitColor = if (overLimit) OverLimitRed else s.textSecondary
 
-    when (s.speedStyle) {
+    when (speedStyleFor(s)) {
         SpeedStyle.AnalogRing -> Row(verticalAlignment = Alignment.CenterVertically) {
             Box(contentAlignment = Alignment.Center) {
                 Canvas(modifier = Modifier.size(dimens().orbSize * 0.9f)) {
@@ -428,12 +434,13 @@ private fun SpeedReadout(speedKmh: Int) {
                 }
             }
         }
+        SpeedStyle.AnalogGauge -> GaugeSpeedo(speedKmh = speedKmh)
         else -> Column {
             Text(
                 text = speedKmh.toString(),
                 color = valueColor,
                 fontSize = dimens().speedSize,
-                fontWeight = if (s.speedStyle == SpeedStyle.DigitalThin) FontWeight.ExtraLight
+                fontWeight = if (speedStyleFor(s) == SpeedStyle.DigitalThin) FontWeight.ExtraLight
                              else FontWeight.Light,
                 fontFamily = s.fontFamily
             )
@@ -443,6 +450,151 @@ private fun SpeedReadout(speedKmh: Int) {
                 fontSize = 13.sp,
                 fontFamily = s.fontFamily,
                 modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Вид спидометра с учётом настройки «Экран → Показатели → Вид спидометра».
+ * Пустая строка — стиль из темы (сейчас все темы — крупные цифры).
+ * Единая точка правды для карточки авто и развёрнутой карточки.
+ */
+internal fun speedStyleFor(theme: ThemeSpec): SpeedStyle =
+    when (SettingsStore.speedStyleOverride.value) {
+        "thin" -> SpeedStyle.DigitalThin
+        "ring" -> SpeedStyle.AnalogRing
+        "gauge" -> SpeedStyle.AnalogGauge
+        else -> theme.speedStyle
+    }
+
+/**
+ * Стрелочный спидометр: подкова шкалы с рисками, плавно плывущая стрелка
+ * и крупная цифра на тёмном «щитке» в центре — как в современных машинах.
+ *
+ * Скорость с GPS приходит раз в секунду и меняется скачками; стрелка и
+ * цифра ведутся от одной анимированной величины, поэтому плывут, а не
+ * дёргаются, и никогда не разъезжаются друг с другом. Пока скорость не
+ * меняется, анимация не работает и кадры не тратятся.
+ *
+ * @param mult множитель размера: 1 — на карточке авто, больше — на
+ *   развёрнутой карточке (полноэкранная «приборка»).
+ */
+@Composable
+internal fun GaugeSpeedo(speedKmh: Int, mult: Float = 1f) {
+    val s = LocalThemeSpec.current
+    val maxKmh = 200
+
+    val animated by animateFloatAsState(
+        targetValue = speedKmh.coerceIn(0, maxKmh).toFloat(),
+        animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+        label = "speedGauge"
+    )
+
+    // Превышение лимита — тревога обязана оставаться красной (см. OverLimitRed).
+    val overLimit = SettingsStore.speedLimitEnabled.value &&
+        speedKmh >= SettingsStore.speedLimitKmh.value
+    val valueColor = if (overLimit) OverLimitRed else s.textPrimary
+    val unitColor = if (overLimit) OverLimitRed else s.textSecondary
+    val danger = if (overLimit) OverLimitRed else s.accent
+
+    // Циферблат крупнее кольца: стрелке нужен размах, а цифре — место.
+    // Размер считаем от панели (как орб), чтобы на тесных экранах
+    // шкала не упиралась в края карточки.
+    val gauge = dimens().orbSize * 1.3f * mult
+    // Цифра в центре — доля циферблата: на больших экранах она крупная,
+    // на тесных не вылезает за щиток даже тремя знаками («200»).
+    val valueSize = (dimens().orbSize.value * 0.20f * mult).sp
+    val unitSize = (9f * mult).sp
+
+    Box(contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.size(gauge)) {
+            val d = size.minDimension
+            val c = center
+            val stroke = 5.dp.toPx()
+            // Внешний край штрихов шкалы отстоит от края канваса.
+            val pad = 8.dp.toPx()
+            // Радиус центра трека: штрихи снаружи, дуга под ними.
+            val trackR = d / 2f - pad - stroke / 2f - 2.dp.toPx()
+
+            // Трек-подкова: от «7 часов» до «5 часов», низ открыт.
+            val trackColor = s.textDim.copy(alpha = 0.35f)
+            drawArc(
+                color = trackColor,
+                startAngle = 135f, sweepAngle = 270f, useCenter = false,
+                style = Stroke(width = stroke)
+            )
+            // Пройденная часть шкалы — акцентом (красным при превышении).
+            val frac = animated / maxKmh
+            if (frac > 0f) {
+                drawArc(
+                    color = danger,
+                    startAngle = 135f, sweepAngle = 270f * frac, useCenter = false,
+                    style = Stroke(width = stroke)
+                )
+            }
+
+            // Риски: каждые 10 км/ч — короткие, каждые 20 — длинные.
+            // Начинаются у внешнего края и идут внутрь, к треку.
+            val rOut = trackR + stroke / 2f + 2.dp.toPx()
+            val rad = kotlin.math.PI.toFloat() / 180f
+            for (v in 0..maxKmh step 10) {
+                val a = (135f + 270f * (v / maxKmh.toFloat())) * rad
+                val major = v % 20 == 0
+                val len = if (major) 13.dp.toPx() else 7.dp.toPx()
+                val x1 = c.x + cos(a) * rOut
+                val y1 = c.y + sin(a) * rOut
+                val x2 = c.x + cos(a) * (rOut - len)
+                val y2 = c.y + sin(a) * (rOut - len)
+                drawLine(
+                    color = if (major) s.textSecondary.copy(alpha = 0.85f)
+                            else s.textSecondary.copy(alpha = 0.45f),
+                    start = Offset(x1, y1),
+                    end = Offset(x2, y2),
+                    strokeWidth = if (major) 2.5.dp.toPx() else 1.5.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+            }
+
+            // Стрелка от центра к шкале. Её «корень» спрячется под щитком,
+            // который рисуется следом, — стрелка выглядит растущей из-под
+            // цифры, как на современных приборках.
+            val needleA = (135f + 270f * frac) * rad
+            val tipR = trackR - 15.dp.toPx()
+            drawLine(
+                color = danger,
+                start = c,
+                end = Offset(c.x + cos(needleA) * tipR, c.y + sin(needleA) * tipR),
+                strokeWidth = 3.5.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+
+            // «Щиток» под цифру: скрывает корень стрелки и даёт цифре
+            // спокойный тёмный фон поверх фото машины.
+            val diskR = trackR * 0.42f
+            drawCircle(color = s.carCardBg, radius = diskR, center = c)
+            drawCircle(
+                color = s.textDim.copy(alpha = 0.30f),
+                radius = diskR,
+                center = c,
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+        }
+        // Цифра и единицы — настоящим текстом поверх щитка (не в Canvas):
+        // так размер подстраивается сам и текст остаётся доступным.
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = animated.roundToInt().toString(),
+                color = valueColor,
+                fontSize = valueSize,
+                fontWeight = FontWeight.Medium,
+                fontFamily = s.fontFamily
+            )
+            Text(
+                text = if (s.uppercaseLabels) "KM/H" else "km/h",
+                color = unitColor,
+                fontSize = unitSize,
+                fontFamily = s.fontFamily
             )
         }
     }

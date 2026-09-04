@@ -185,11 +185,17 @@ fun ExpandedCar(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = speedKmh.toString(), color = s.textPrimary,
-                fontSize = 96.sp, fontWeight = FontWeight.Light, fontFamily = s.fontFamily
-            )
-            Text("km/h", color = s.textSecondary, fontSize = 16.sp, fontFamily = s.fontFamily)
+            // Вид — как на карточке: если выбран стрелочный спидометр,
+            // разворачиваем его на весь экран, а не меняем на цифры.
+            if (speedStyleFor(s) == SpeedStyle.AnalogGauge) {
+                GaugeSpeedo(speedKmh = speedKmh, mult = 2.0f)
+            } else {
+                Text(
+                    text = speedKmh.toString(), color = s.textPrimary,
+                    fontSize = 96.sp, fontWeight = FontWeight.Light, fontFamily = s.fontFamily
+                )
+                Text("km/h", color = s.textSecondary, fontSize = 16.sp, fontFamily = s.fontFamily)
+            }
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),

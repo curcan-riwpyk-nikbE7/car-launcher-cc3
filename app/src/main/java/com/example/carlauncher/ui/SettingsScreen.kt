@@ -63,6 +63,7 @@ import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.AvTimer
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.SwipeVertical
@@ -816,6 +817,35 @@ private fun ScreenTab(
                 accentIcon = showSpeed,
                 trailing = { ThemedSwitch(showSpeed, onShowSpeed) },
                 onClick = { onShowSpeed(!showSpeed) },
+                modifier = Modifier.fillMaxWidth().height(196.dp)
+            )
+        }
+
+        item {
+            val style = SettingsStore.speedStyleOverride.value
+            val styleName = when (style) {
+                "thin" -> "Тонкие цифры"
+                "ring" -> "Кольцо"
+                "gauge" -> "Стрелка с цифрой"
+                else -> "Крупные цифры"
+            }
+            SettingTile(
+                icon = Icons.Rounded.AvTimer,
+                title = "Вид спидометра",
+                subtitle = styleName,
+                accentIcon = style != "",
+                onClick = {
+                    // Перебираем виды по кругу: цифры → тонкие → кольцо →
+                    // стрелка → цифры. Пустая строка — стиль из темы.
+                    SettingsStore.setSpeedStyle(
+                        when (style) {
+                            "" -> "thin"
+                            "thin" -> "ring"
+                            "ring" -> "gauge"
+                            else -> ""
+                        }
+                    )
+                },
                 modifier = Modifier.fillMaxWidth().height(196.dp)
             )
         }

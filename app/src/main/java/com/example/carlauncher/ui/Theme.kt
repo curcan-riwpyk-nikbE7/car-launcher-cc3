@@ -19,8 +19,11 @@ import androidx.compose.ui.unit.sp
 /** Где расположена панель управления. Это меняет всю раскладку экрана. */
 enum class LayoutStyle { SidebarLeft, SidebarRight, BottomDock, TopBar, GridDock }
 
-/** Как рисуется скорость на карточке авто. */
-enum class SpeedStyle { DigitalLarge, DigitalThin, AnalogRing }
+/**
+ * Как рисуется скорость на карточке авто.
+ * AnalogGauge — стрелочный циферблат с цифрой в центре («как в машине»).
+ */
+enum class SpeedStyle { DigitalLarge, DigitalThin, AnalogRing, AnalogGauge }
 
 /** Как выглядят часы на панели. */
 enum class ClockStyle { DigitalLarge, DigitalCompact, Analog, HeroRight }

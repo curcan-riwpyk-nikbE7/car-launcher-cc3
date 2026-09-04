@@ -28,6 +28,7 @@ object SettingsStore {
     private const val K_PREWARM = "set_prewarm_window"
     private const val K_SPEED_MODE = "set_speed_mode"
     private const val K_SPEED_AREA = "set_speed_area"
+    private const val K_SPEED_STYLE = "set_speed_style"
     private const val K_LIMIT_ENABLED = "set_speed_limit_enabled"
     private const val K_LIMIT_KMH = "set_speed_limit_kmh"
     private const val K_LIMIT_SOUND = "set_speed_limit_sound"
@@ -101,6 +102,12 @@ object SettingsStore {
     /** Область плавающего окна: Card | RightColumn | RightHalf. */
     val speedArea: MutableState<String> = mutableStateOf("RightColumn")
 
+    /**
+     * Вид спидометра поверх темы: "" | thin | ring | gauge.
+     * Пусто — стиль из темы (сейчас все темы — крупные цифры).
+     */
+    val speedStyleOverride: MutableState<String> = mutableStateOf("")
+
     /** Предупреждение о превышении скорости: цифры краснеют + сигнал. */
     val speedLimitEnabled: MutableState<Boolean> = mutableStateOf(false)
 
@@ -165,6 +172,7 @@ object SettingsStore {
             if (SystemPrivileges.canEmbedActivities(context)) "embed" else "freeform"
         speedMode.value = p.getString(K_SPEED_MODE, defaultMode) ?: defaultMode
         speedArea.value = p.getString(K_SPEED_AREA, "RightColumn") ?: "RightColumn"
+        speedStyleOverride.value = p.getString(K_SPEED_STYLE, "") ?: ""
         speedLimitEnabled.value = p.getBoolean(K_LIMIT_ENABLED, false)
         speedLimitKmh.value = p.getInt(K_LIMIT_KMH, 60).coerceIn(30, 200)
         speedLimitSound.value = p.getBoolean(K_LIMIT_SOUND, true)
@@ -191,6 +199,7 @@ object SettingsStore {
     fun setPrewarm(v: Boolean) { prewarmWindow.value = v; prefs?.edit()?.putBoolean(K_PREWARM, v)?.apply() }
     fun setSpeedArea(v: String) { speedArea.value = v; prefs?.edit()?.putString(K_SPEED_AREA, v)?.apply() }
     fun setSpeedMode(v: String) { speedMode.value = v; prefs?.edit()?.putString(K_SPEED_MODE, v)?.apply() }
+    fun setSpeedStyle(v: String) { speedStyleOverride.value = v; prefs?.edit()?.putString(K_SPEED_STYLE, v)?.apply() }
     fun setRadioName(v: String) { radioName.value = v; prefs?.edit()?.putString(K_RADIO_NAME, v)?.apply() }
     fun setSpeedLimitEnabled(v: Boolean) {
         speedLimitEnabled.value = v

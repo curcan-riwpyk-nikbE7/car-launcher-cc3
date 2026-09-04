@@ -290,7 +290,7 @@ private fun Dot(color: Color, s: ThemeSpec) {
     )
 }
 
-/** Значок скорости: цифры или кольцо — по стилю темы. */
+/** Значок скорости: цифры, кольцо или стрелка — по стилю темы. */
 @Composable
 private fun SpeedGlyph(s: ThemeSpec) {
     when (s.speedStyle) {
@@ -301,6 +301,27 @@ private fun SpeedGlyph(s: ThemeSpec) {
                 .clip(CircleShape)
                 .border(2.dp, s.accent, CircleShape)
         )
+        SpeedStyle.AnalogGauge -> Box(
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .size(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // Циферблат со стрелкой вверх — как на настоящем спидометре.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .border(2.dp, s.accent, CircleShape)
+            )
+            Box(
+                modifier = Modifier
+                    .width(2.dp)
+                    .height(11.dp)
+                    .clip(CircleShape)
+                    .background(s.accent)
+            )
+        }
         else -> Text(
             text = "0",
             color = s.textPrimary,
