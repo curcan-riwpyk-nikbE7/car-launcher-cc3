@@ -306,21 +306,23 @@ fun HomeScreen(
     // Поведение как в штатных лаунчерах: тап по спидометру — карточка
     // мгновенно показывает назначенное приложение (карту), повторный
     // тап по кнопке «спидометр» под ним — возвращает спидометр.
-    // Способ показа больше не спрашиваем — пробуем сами, по убыванию
-    // качества: встроить без рамки, не вышло → окно в границах карточки,
-    // не вышло → на весь экран. У штатных лаунчеров пользователь выбирает
-    // приложение, а не технологию, и это правильно: разница между
-    // ACTIVITY_EMBEDDING и freeform — наша забота, а не его.
+    //
+    // СПОСОБ ПОКАЗА. На прошивках CC3 виртуальный дисплей (встроенный
+    // режим EmbeddedAppView) не рисует чужие приложения — карточка
+    // остаётся чёрной. Проверено на Android 8.1: «на весь экран» любое
+    // приложение работает, а на виртуальном дисплее — чёрный экран.
+    // Поэтому по умолчанию показываем приложение ПЛАВАЮЩИМ ОКНОМ в
+    // границах карточки (FreeformLauncher — тот же главный дисплей,
+    // приложение рисует). Встроенный режим оставлен как опция
+    // «принудительно» для прошивок, где он реально работает, но
+    // включается только явным действием, а не по умолчанию.
     val onSpeedClick: () -> Unit = {
         val a = speedApp
         if (a != null) {
-            when {
-                // Встраивание доступно и раньше не падало — разворачиваем
-                // приложение в карточке. Обратно — кнопкой под ним.
-                SystemPrivileges.canEmbedActivities(context) && !embedFailed ->
-                    SettingsStore.setSpeedCardEmbedded(true)
-                FreeformLauncher.isAvailable(context) -> launchFreeform(a.packageName)
-                else -> AppRepository.launch(context, a)
+            if (FreeformLauncher.isAvailable(context)) {
+                launchFreeform(a.packageName)
+            } else {
+                AppRepository.launch(context, a)
             }
         } else {
             pickerSlot = ShortcutStore.SLOT_SPEED
@@ -430,13 +432,11 @@ fun HomeScreen(
                     onSpeedClick = onSpeedClick,
                     onSpeedLongClick = onSpeedLongClick,
                     onBounds = { r -> cardBounds.set(r) },
-                    // Приложение встраиваем только когда карточка в режиме
-                    // «карта»: выбранный пакет сам по себе спидометр
-                    // не прячет — сначала тап по спидометру.
-                    embeddedPackage = speedApp?.packageName
-                        ?.takeIf {
-                            SettingsStore.speedCardEmbedded.value && !embedFailed
-                        },
+                    // Приложение НЕ встраиваем в карточку: на прошивках
+                    // CC3 виртуальный дисплей даёт чёрный экран. Карта
+                    // показывается плавающим окном по границам карточки
+                    // (см. onSpeedClick) — это главный дисплей, он рисует.
+                    embeddedPackage = null,
                     onEmbedFailed = { embedFailed = true },
                     onBackToSpeed = { SettingsStore.setSpeedCardEmbedded(false) },
                     // «На весь экран»: карточка возвращается к спидометру,
@@ -834,15 +834,13 @@ fun HomeScreen(
                 store.set(slot, app.packageName)
                 revision++
                 pickerSlot = null
-                // Сразу показываем результат: запускаем в выбранном режиме
+                // Сразу показываем результат: карту открываем плавающим
+                // окном по границам карточки (на главном дисплее, где
+                // приложение гарантированно рисует). Встроенный режим
+                // не включаем — на прошивках CC3 он даёт чёрный экран.
                 if (slot == ShortcutStore.SLOT_SPEED) {
-                    // Права есть — карточка сразу переключается на новое
-                    // приложение (кнопка «спидометр» под ним вернёт
-                    // спидометр). Если прав нет — покажем его окном.
                     embedFailed = false
-                    if (SystemPrivileges.canEmbedActivities(context)) {
-                        SettingsStore.setSpeedCardEmbedded(true)
-                    } else if (FreeformLauncher.isAvailable(context)) {
+                    if (FreeformLauncher.isAvailable(context)) {
                         launchFreeform(app.packageName)
                     }
                 }
