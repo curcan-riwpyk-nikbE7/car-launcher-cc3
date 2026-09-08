@@ -78,6 +78,7 @@ import com.example.carlauncher.data.FreeformLauncher
 import com.example.carlauncher.data.SplitScreen
 import androidx.compose.ui.graphics.asImageBitmap
 import com.example.carlauncher.data.TripComputer
+import com.example.carlauncher.data.rememberWeather
 import com.example.carlauncher.data.WallpaperStore
 import com.example.carlauncher.data.rememberIsNight
 import com.example.carlauncher.data.ShortcutStore
@@ -553,7 +554,21 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.SpaceBetween,
                     horizontalAlignment = Alignment.End
                 ) {
-                    HeroClockPanel(date = now)
+                    // Часы и погода под ними — единый верхний блок,
+                    // прижатый к верху колонки.
+                    Column(horizontalAlignment = Alignment.End) {
+                        HeroClockPanel(date = now)
+                        // Строка погоды: та же погода, что в статус-баре
+                        // (общий ключ обновления), но под часами она видна
+                        // постоянно, не только в верхней полосе.
+                        val weather by rememberWeather(weatherKey)
+                        if (weather.valid) {
+                            AuroraWeatherLine(
+                                weather = weather,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
+                    }
                     val heading = TripComputer.headingDeg.value
                     CompassCard(
                         direction = compassRose(heading),

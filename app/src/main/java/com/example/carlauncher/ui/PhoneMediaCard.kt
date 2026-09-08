@@ -258,26 +258,29 @@ fun PhoneMediaCard(
 
                 Box(Modifier.weight(0.6f))
 
-                // Полоса прогресса с градиентной заливкой
-                val fraction = if (state.durationMs > 0L) {
-                    (state.positionMs.toFloat() / state.durationMs.toFloat()).coerceIn(0f, 1f)
-                } else 0.35f
-                // 5 dp вместо 3: на референсе полоса заметная, а тонкая
-                // линия на 720p сливается с фоном телефона.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(5.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Color.White.copy(alpha = 0.22f))
-                ) {
+                // Полоса прогресса с градиентной заливкой.
+                // Позиция «живая»: пока трек играет, полоса едет сама
+                // (см. rememberLivePlayFraction). Без длительности линию
+                // не рисуем — пустая полоса выглядела бы поломкой.
+                if (state.durationMs > 0L) {
+                    val fraction = rememberLivePlayFraction(state)
+                    // 5 dp вместо 3: на референсе полоса заметная, а тонкая
+                    // линия на 720p сливается с фоном телефона.
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(fraction)
+                            .fillMaxWidth()
                             .height(5.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(Brush.horizontalGradient(listOf(s.accent, s.accent2)))
-                    )
+                            .background(Color.White.copy(alpha = 0.22f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(Brush.horizontalGradient(listOf(s.accent, s.accent2)))
+                        )
+                    }
                 }
 
                 Box(Modifier.weight(0.5f))

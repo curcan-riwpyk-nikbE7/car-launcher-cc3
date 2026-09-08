@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -32,7 +34,11 @@ import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -48,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.carlauncher.data.NowPlaying
+import kotlinx.coroutines.delay
 
 /** Медиа-карточка с ярким градиентом, как на CC3. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -130,34 +137,61 @@ fun MediaCard(
                 .padding(18.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.clickable(onClick = onOpenPlayer)) {
-                    Text(
-                        text = state.title,
-                        color = Color.White,
-                        fontSize = dimens().mediaTitle,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = state.artist,
-                        color = Color.White.copy(alpha = 0.82f),
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 3.dp)
+            // Заголовок и под ним — тонкая полоса прогресса трека.
+            // Верхний блок держится вместе, чтобы линия была сразу
+            // под названием, а не болталась в середине карточки.
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.clickable(onClick = onOpenPlayer)) {
+                        Text(
+                            text = state.title,
+                            color = Color.White,
+                            fontSize = dimens().mediaTitle,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = state.artist,
+                            color = Color.White.copy(alpha = 0.82f),
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 3.dp)
+                        )
+                    }
+                    Icon(
+                        Icons.Rounded.DragIndicator, null,
+                        tint = Color.White.copy(alpha = 0.55f),
+                        modifier = Modifier.size(17.dp)
                     )
                 }
-                Icon(
-                    Icons.Rounded.DragIndicator, null,
-                    tint = Color.White.copy(alpha = 0.55f),
-                    modifier = Modifier.size(17.dp)
-                )
+
+                // Полоса появляется только когда плеер сообщил длительность:
+                // пустая линия без трека смотрелась бы поломкой.
+                if (state.durationMs > 0L) {
+                    val frac = rememberLivePlayFraction(state)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.25f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(frac)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Color.White.copy(alpha = 0.9f))
+                        )
+                    }
+                }
             }
 
             EqualizerBars(
@@ -210,6 +244,42 @@ private fun CtrlIcon(
             .clickable(onClick = onClick)
             .padding(7.dp)
     )
+}
+
+/**
+ * Живая доля проигранного трека 0..1.
+ *
+ * Плеер сообщает позицию рывками (при переключении, паузе), а между
+ * обновлениями полоса должна ехать сама. Поэтому пока трек играет,
+ * раз в полсекунды докручиваем позицию от последней известной точки
+ * по системным часам (elapsedRealtime). На паузе полоса стоит.
+ *
+ * 0, если длительность неизвестна (плеер её не сообщает) — вызывающий
+ * сам решает, рисовать ли линию.
+ */
+@Composable
+fun rememberLivePlayFraction(state: NowPlaying): Float {
+    val duration = state.durationMs
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(state.isPlaying, state.positionAt) {
+        if (state.isPlaying && duration > 0L) {
+            while (true) {
+                tick = android.os.SystemClock.elapsedRealtime()
+                delay(500)
+            }
+        }
+    }
+    // tick в ключе remember: каждые полсекунды значение пересчитывается,
+    // и полоса едет плавно, без рывков от редких обновлений плеера.
+    val live = remember(tick, state.positionMs, state.positionAt, state.isPlaying, duration) {
+        val pos = if (state.isPlaying) {
+            state.positionMs + (android.os.SystemClock.elapsedRealtime() - state.positionAt)
+        } else {
+            state.positionMs
+        }
+        (pos.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    }
+    return if (duration <= 0L) 0f else live
 }
 
 /** Анимированный эквалайзер — двигается только когда играет музыка. */

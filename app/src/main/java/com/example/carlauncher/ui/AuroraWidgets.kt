@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.carlauncher.data.AppInfo
+import com.example.carlauncher.data.Weather
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -89,6 +90,42 @@ fun HeroClockPanel(date: Date, modifier: Modifier = Modifier) {
                     fontFamily = s.fontFamily
                 )
             }
+        }
+    }
+}
+
+/**
+ * Строка погоды под часами Aurora: иконка состояния, температура
+ * и короткое описание. Выровнена вправо — продолжает линию часов.
+ */
+@Composable
+fun AuroraWeatherLine(weather: Weather, modifier: Modifier = Modifier) {
+    val s = LocalThemeSpec.current
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Icon(
+            imageVector = weatherIcon(weather.code, weather.isDay),
+            contentDescription = weather.description,
+            tint = weatherTint(weather.code),
+            modifier = Modifier.size(19.dp)
+        )
+        Text(
+            text = "${weather.tempC}°",
+            color = s.textPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = s.fontFamily
+        )
+        if (weather.description.isNotBlank()) {
+            Text(
+                text = weather.description.replaceFirstChar { it.lowercase() },
+                color = s.textSecondary,
+                fontSize = 13.sp,
+                fontFamily = s.fontFamily
+            )
         }
     }
 }
