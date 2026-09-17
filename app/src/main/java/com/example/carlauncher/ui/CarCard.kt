@@ -89,6 +89,10 @@ fun CarCard(
     onSpeedLongClick: () -> Unit = {},
     /** Сообщает фактические границы карточки на экране в пикселях. */
     onBounds: (android.graphics.Rect) -> Unit = {},
+    /** Режим содержимого карточки: speed, map, widget, youtube. */
+    contentMode: String = SettingsStore.CARD_MODE_SPEED,
+    widgetId: Int = SettingsStore.cardWidgetId.value,
+    onPickWidget: () -> Unit = {},
     /** Пакет приложения, встроенного прямо в карточку (null — спидометр). */
     embeddedPackage: String? = null,
     onEmbedFailed: () -> Unit = {},
@@ -252,6 +256,74 @@ fun CarCard(
                         }
                     )
             )
+        }
+
+        if (contentMode == SettingsStore.CARD_MODE_MAP) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(s.cardCorner))
+            ) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    EmbeddedMapView(
+                        speedKmh = speedKmh,
+                        onOpenFullNavi = onOpenFullscreen,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                EmbedCardBar(
+                    title = "Живая карта (GPS)",
+                    onBackToSpeed = onBackToSpeed,
+                    onFullscreen = onOpenFullscreen,
+                    onPickApp = onSpeedLongClick
+                )
+            }
+            return@Box
+        }
+
+        if (contentMode == SettingsStore.CARD_MODE_WIDGET) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(s.cardCorner))
+            ) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    AppWidgetCardView(
+                        widgetId = widgetId,
+                        onPickWidget = onPickWidget,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                EmbedCardBar(
+                    title = "Виджет",
+                    onBackToSpeed = onBackToSpeed,
+                    onFullscreen = onOpenFullscreen,
+                    onPickApp = onSpeedLongClick
+                )
+            }
+            return@Box
+        }
+
+        if (contentMode == SettingsStore.CARD_MODE_YOUTUBE) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(s.cardCorner))
+            ) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    EmbeddedYouTubeView(
+                        onOpenFullscreen = onOpenFullscreen,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                EmbedCardBar(
+                    title = "YouTube",
+                    onBackToSpeed = onBackToSpeed,
+                    onFullscreen = onOpenFullscreen,
+                    onPickApp = onSpeedLongClick
+                )
+            }
+            return@Box
         }
 
         // Приложение занимает карточку целиком, без системной рамки.
@@ -626,7 +698,8 @@ private fun RoundToggle(icon: ImageVector, label: String, onClick: () -> Unit) {
  */
 @Composable
 private fun EmbedCardBar(
-    app: AppInfo?,
+    app: AppInfo? = null,
+    title: String = app?.label ?: "",
     onBackToSpeed: () -> Unit,
     onFullscreen: () -> Unit,
     onPickApp: () -> Unit
@@ -643,20 +716,18 @@ private fun EmbedCardBar(
     ) {
         if (app != null) {
             AppIcon(app.icon, app.label, Modifier.size(18.dp))
-            Text(
-                text = app.label,
-                color = s.textSecondary,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontFamily = s.fontFamily,
-                modifier = Modifier.weight(1f)
-            )
-        } else {
-            Box(modifier = Modifier.weight(1f))
         }
+        Text(
+            text = title,
+            color = s.textSecondary,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontFamily = s.fontFamily,
+            modifier = Modifier.weight(1f)
+        )
         RoundToggle(Icons.Rounded.Speed, "Вернуть спидометр", onBackToSpeed)
         RoundToggle(Icons.Rounded.OpenInFull, "На весь экран", onFullscreen)
-        RoundToggle(LauncherIcons.Cube, "Сменить приложение", onPickApp)
+        RoundToggle(LauncherIcons.Cube, "Сменить режим", onPickApp)
     }
 }

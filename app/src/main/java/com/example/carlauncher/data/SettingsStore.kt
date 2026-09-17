@@ -41,6 +41,14 @@ object SettingsStore {
     private const val K_WORK_LON = "set_work_lon"
     private const val K_RECENT = "recent_apps"
 
+    const val CARD_MODE_SPEED = "speed"
+    const val CARD_MODE_MAP = "map"
+    const val CARD_MODE_WIDGET = "widget"
+    const val CARD_MODE_YOUTUBE = "youtube"
+
+    private const val K_CARD_CONTENT_MODE = "set_card_content_mode"
+    private const val K_CARD_WIDGET_ID = "set_card_widget_id"
+
     private var prefs: android.content.SharedPreferences? = null
 
     /** Жесты по экрану включены. */
@@ -130,6 +138,12 @@ object SettingsStore {
      */
     val speedCardEmbedded: MutableState<Boolean> = mutableStateOf(false)
 
+    /** Режим отображения в правой карточке: спидометр, карта, виджет, YouTube. */
+    val cardContentMode: MutableState<String> = mutableStateOf(CARD_MODE_SPEED)
+
+    /** ID сохранённого системного виджета (Яндекс Музыка и др.). */
+    val cardWidgetId: MutableState<Int> = mutableStateOf(-1)
+
     /** Координаты «дома» и «работы» для быстрых маршрутов (0 = не задано). */
     val homeLat: MutableState<Double> = mutableStateOf(0.0)
     val homeLon: MutableState<Double> = mutableStateOf(0.0)
@@ -179,10 +193,21 @@ object SettingsStore {
         saverEnabled.value = p.getBoolean(K_SAVER_ENABLED, true)
         saverTimeoutMin.value = p.getInt(K_SAVER_TIMEOUT, 2).coerceIn(1, 15)
         speedCardEmbedded.value = p.getBoolean(K_SPEED_EMBEDDED, false)
+        cardContentMode.value = p.getString(K_CARD_CONTENT_MODE, CARD_MODE_SPEED) ?: CARD_MODE_SPEED
+        cardWidgetId.value = p.getInt(K_CARD_WIDGET_ID, -1)
         homeLat.value = p.getFloat(K_HOME_LAT, 0f).toDouble()
         homeLon.value = p.getFloat(K_HOME_LON, 0f).toDouble()
         workLat.value = p.getFloat(K_WORK_LAT, 0f).toDouble()
         workLon.value = p.getFloat(K_WORK_LON, 0f).toDouble()
+    }
+
+    fun setCardContentMode(v: String) {
+        cardContentMode.value = v
+        prefs?.edit()?.putString(K_CARD_CONTENT_MODE, v)?.apply()
+    }
+    fun setCardWidgetId(id: Int) {
+        cardWidgetId.value = id
+        prefs?.edit()?.putInt(K_CARD_WIDGET_ID, id)?.apply()
     }
 
     fun setGestures(v: Boolean) { gesturesEnabled.value = v; prefs?.edit()?.putBoolean(K_GESTURES, v)?.apply() }

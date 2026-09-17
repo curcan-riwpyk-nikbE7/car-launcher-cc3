@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.carlauncher"
         minSdk = 23          // Android 6.0 — типовые китайские ГУ
         targetSdk = 30       // намеренно 30: на targetSdk 31+ старые ГУ ломают часть intent'ов
-        versionCode = 39
-        versionName = "4.8"
+        versionCode = 40
+        versionName = "4.9"
 
         ndk {
             // Головные устройства все на ARM. Библиотеки Vosk для x86
@@ -182,6 +182,9 @@ dependencies {
     // Офлайн-распознавание речи. Модель лежит в assets/model-ru,
     // интернет не нужен вообще — важно, в машине связи часто нет.
     implementation("com.alphacephei:vosk-android:0.3.75")
+
+    // Встроенная живая GPS-карта местности в карточке
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     testImplementation("junit:junit:4.13.2")
 }

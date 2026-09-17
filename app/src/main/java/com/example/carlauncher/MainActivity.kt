@@ -31,6 +31,8 @@ import com.example.carlauncher.ui.HomeScreen
 import com.example.carlauncher.ui.VoiceOverlay
 import com.example.carlauncher.ui.ScreenDimOverlay
 import com.example.carlauncher.voice.VoiceAssistant
+import android.appwidget.AppWidgetManager
+import com.example.carlauncher.data.AppWidgetHostManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,6 +40,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
 
     private var apps by mutableStateOf<List<AppInfo>>(emptyList())
+    private var pendingWidgetId = -1
 
     private val locationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -53,12 +56,67 @@ class MainActivity : ComponentActivity() {
         if (granted) runCatching { assistant.start(lifecycleScope) }
     }
 
+    private val pickWidgetLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val widgetId = result.data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
+            if (widgetId > 0) {
+                checkWidgetConfigure(widgetId)
+            }
+        } else if (pendingWidgetId > 0) {
+            AppWidgetHostManager.deleteAppWidgetId(pendingWidgetId)
+            pendingWidgetId = -1
+        }
+    }
+
+    private val configureWidgetLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            if (pendingWidgetId > 0) {
+                SettingsStore.setCardWidgetId(pendingWidgetId)
+                SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
+                pendingWidgetId = -1
+            }
+        } else if (pendingWidgetId > 0) {
+            AppWidgetHostManager.deleteAppWidgetId(pendingWidgetId)
+            pendingWidgetId = -1
+        }
+    }
+
+    private fun checkWidgetConfigure(widgetId: Int) {
+        val info = AppWidgetHostManager.getAppWidgetInfo(widgetId)
+        if (info?.configure != null) {
+            pendingWidgetId = widgetId
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                component = info.configure
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            }
+            configureWidgetLauncher.launch(intent)
+        } else {
+            SettingsStore.setCardWidgetId(widgetId)
+            SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
+        }
+    }
+
+    private fun startWidgetPicker() {
+        val widgetId = AppWidgetHostManager.allocateAppWidgetId()
+        if (widgetId <= 0) return
+        pendingWidgetId = widgetId
+        val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+        }
+        pickWidgetLauncher.launch(pickIntent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Рисуем под системными барами — лаунчер занимает весь экран
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         ThemeStore.init(this)
         SettingsStore.init(this)
+        AppWidgetHostManager.init(this)
         TripComputer.init(this)
         com.example.carlauncher.data.Maintenance.init(this)
         // Тихий старт: вечером слушал громко — утром завёл и получил
@@ -87,7 +145,8 @@ class MainActivity : ComponentActivity() {
                         // не дожидаясь слова активации: за рулём при
                         // громкой музыке это единственный надёжный способ.
                         onVoice = { assistant.listenNow() },
-                        onScreenOff = { dimScreen(true) }
+                        onScreenOff = { dimScreen(true) },
+                        onPickWidget = { startWidgetPicker() }
                     )
 
                     VoiceOverlay(
@@ -120,6 +179,16 @@ class MainActivity : ComponentActivity() {
                 micPermission.launch(Manifest.permission.RECORD_AUDIO)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        AppWidgetHostManager.startListening()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        AppWidgetHostManager.stopListening()
     }
 
     override fun onResume() {

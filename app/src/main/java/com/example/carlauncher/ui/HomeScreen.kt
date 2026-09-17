@@ -98,7 +98,9 @@ fun HomeScreen(
      */
     onVoice: (() -> Unit)? = null,
     /** Гашение подсветки держит Activity: из Compose до Window не дотянуться. */
-    onScreenOff: (() -> Unit)? = null
+    onScreenOff: (() -> Unit)? = null,
+    /** Вызов системного пикера виджетов Android (Яндекс Музыка и др.). */
+    onPickWidget: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val spec = LocalThemeSpec.current
@@ -106,6 +108,7 @@ fun HomeScreen(
     var revision by remember { mutableStateOf(0) }
     var pickerSlot by remember { mutableStateOf<String?>(null) }
     var pickerTitle by remember { mutableStateOf("") }
+    var modeDialogOpen by remember { mutableStateOf(false) }
 
     val nowPlaying by rememberNowPlaying(revision)
     // Имя станции для карточек радио: если играет радио-приложение
@@ -333,19 +336,15 @@ fun HomeScreen(
     val onSpeedClick: () -> Unit = {
         val a = speedApp
         if (a != null) {
-            // launchFreeform сам решает: ГУ умеет окна — окно по границам
-            // карточки, не умеет — сразу полный экран с подсказкой.
-            launchFreeform(a.packageName)
+            AppRepository.launch(context, a)
         } else {
-            pickerSlot = ShortcutStore.SLOT_SPEED
-            pickerTitle = "Что показывать вместо спидометра"
+            modeDialogOpen = true
         }
     }
-    // Удержание — сменить приложение в карточке. Сразу выбор приложения,
-    // без промежуточного меню режимов.
+    // Удержание или нажатие на «кубик» — диалог выбора режима карточки
+    // (Спидометр, GPS-карта, Виджет Яндекс Музыки или YouTube)
     val onSpeedLongClick: () -> Unit = {
-        pickerSlot = ShortcutStore.SLOT_SPEED
-        pickerTitle = "Что показывать вместо спидометра"
+        modeDialogOpen = true
     }
 
     // --- общие блоки, которые раскладка расставляет по-разному ---
@@ -376,8 +375,7 @@ fun HomeScreen(
             },
             onAllApps = { context.startActivity(Intent(context, AllAppsActivity::class.java)) },
             onPickCardApp = {
-                pickerSlot = ShortcutStore.SLOT_SPEED
-                pickerTitle = "Что показывать вместо спидометра"
+                modeDialogOpen = true
             },
             onNavigation = { AppRepository.launchFirstAvailable(context, AppRepository.NAVIGATION) }
         )
@@ -444,22 +442,29 @@ fun HomeScreen(
                     onSpeedClick = onSpeedClick,
                     onSpeedLongClick = onSpeedLongClick,
                     onBounds = { r -> cardBounds.set(r) },
-                    // Приложение НЕ встраиваем в карточку: на прошивках
-                    // CC3 виртуальный дисплей даёт чёрный экран. Карта
-                    // показывается плавающим окном по границам карточки
-                    // (см. onSpeedClick) — это главный дисплей, он рисует.
+                    contentMode = SettingsStore.cardContentMode.value,
+                    widgetId = SettingsStore.cardWidgetId.value,
+                    onPickWidget = onPickWidget,
                     embeddedPackage = null,
                     onEmbedFailed = { embedFailed = true },
-                    onBackToSpeed = { SettingsStore.setSpeedCardEmbedded(false) },
-                    // «На весь экран»: карточка возвращается к спидометру,
-                    // а задача приложения уезжает на основной экран.
+                    onBackToSpeed = {
+                        SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_SPEED)
+                        revision++
+                    },
                     onOpenFullscreen = {
-                        val a = speedApp
-                        if (a != null) {
-                            SettingsStore.setSpeedCardEmbedded(false)
-                            if (!TaskMover.moveToMainDisplay(context, a.packageName)) {
-                                // Задача ещё не поднялась — просто открываем
-                                AppRepository.launch(context, a)
+                        when (SettingsStore.cardContentMode.value) {
+                            SettingsStore.CARD_MODE_MAP -> {
+                                AppRepository.launchFirstAvailable(context, AppRepository.NAVIGATION)
+                            }
+                            SettingsStore.CARD_MODE_YOUTUBE -> {
+                                val pkg = AppRepository.YOUTUBE.firstOrNull {
+                                    AppRepository.isInstalled(context, it)
+                                } ?: "com.google.android.youtube"
+                                AppRepository.launchPackage(context, pkg)
+                            }
+                            else -> {
+                                val a = speedApp
+                                if (a != null) AppRepository.launch(context, a)
                             }
                         }
                     },
@@ -850,7 +855,21 @@ fun HomeScreen(
         }
     }
 
-
+    if (modeDialogOpen) {
+        CardContentModeDialog(
+            currentMode = SettingsStore.cardContentMode.value,
+            onSelectMode = { mode ->
+                SettingsStore.setCardContentMode(mode)
+                revision++
+            },
+            onPickAppForSpeed = {
+                pickerSlot = ShortcutStore.SLOT_SPEED
+                pickerTitle = "Что открывать при нажатии на спидометр"
+            },
+            onPickWidget = onPickWidget,
+            onDismiss = { modeDialogOpen = false }
+        )
+    }
 
     pickerSlot?.let { slot ->
         AppPickerDialog(
