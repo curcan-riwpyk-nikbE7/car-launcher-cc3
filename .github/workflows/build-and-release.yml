@@ -68,44 +68,36 @@ jobs:
           $BUILD_TOOLS_DIR/apksigner verify --print-certs KINGSAID-TESTKEY.apk
           $BUILD_TOOLS_DIR/apksigner verify --print-certs KINGSAID-PIP.apk
 
+      - name: Upload APKs as Workflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CarLauncher-v4.9-APKs
+          path: |
+            KINGSAID-TESTKEY.apk
+            KINGSAID-PIP.apk
+
       - name: Create Release and Upload APKs
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: v4.9
+          name: "v4.9 — Виджеты (Яндекс Музыка), GPS-Карта и YouTube"
+          body: |
+            ## Что нового в 4.9
+
+            **Новые интерактивные режимы в карточке вместо спидометра:**
+            - **Виджет (Яндекс.Музыка):** интеграция `AppWidgetHost` — теперь в карточку можно поместить официальный системный виджет Яндекс Музыки (с обложкой, названием трека, кнопками и лайком) или любого другого плеера.
+            - **Живая векторная GPS-карта:** ночная карта дорог (OsmDroid) с маркером машины по центру, текущей скоростью и кнопкой разворота на полный экран. Работает автономно без API-ключей.
+            - **Встроенный YouTube:** видеоплеер на базе WebView прямо в карточке авто.
+            - **Селектор режимов («Кубик»):** нажатие на кубик или удержание спидометра открывает удобный диалог быстрого выбора между Спидометром, Картой, Виджетом и YouTube.
+
+            ## Файлы
+            - `KINGSAID-TESTKEY.apk` — стандартная сборка (AOSP testkey)
+            - `KINGSAID-PIP.apk` — системная сборка (platform, android.uid.system)
+
+            Обновление встаёт поверх 4.4–4.8 без потери данных прямо через встроенный механизм обновления в лаунчере!
+          files: |
+            KINGSAID-TESTKEY.apk
+            KINGSAID-PIP.apk
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release delete v4.9 -y --cleanup-tag=false || true
-          gh release create v4.9 \
-            --title "v4.9 — Виджеты (Яндекс Музыка), GPS-Карта и YouTube" \
-            --notes "## Что нового в 4.9
-
-          **Новые интерактивные режимы в карточке вместо спидометра:**
-          - **Виджет (Яндекс.Музыка):** интеграция AppWidgetHost — теперь в карточку можно поместить официальный системный виджет Яндекс Музыки (с обложкой, названием трека, кнопками и лайком) или любого другого плеера.
-          - **Живая векторная GPS-карта:** ночная карта дорог (OsmDroid) с маркером машины по центру, текущей скоростью и кнопкой разворота на полный экран. Работает автономно без API-ключей.
-          - **Встроенный YouTube:** видеоплеер на базе WebView прямо в карточке авто.
-          - **Селектор режимов («Кубик»):** нажатие на кубик или удержание спидометра открывает удобный диалог быстрого выбора между Спидометром, Картой, Виджетом и YouTube.
-
-          ## Файлы
-          - KINGSAID-TESTKEY.apk — стандартная сборка (AOSP testkey)
-          - KINGSAID-PIP.apk — системная сборка (platform, android.uid.system)
-
-          Обновление встаёт поверх 4.4–4.8 без потери данных прямо через встроенный механизм обновления в лаунчере!"
-
-          echo "Waiting 15 seconds for release metadata to replicate across GitHub cluster..."
-          sleep 15
-
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            echo "Uploading KINGSAID-TESTKEY.apk (attempt $i)..."
-            if gh release upload v4.9 KINGSAID-TESTKEY.apk --clobber; then
-              echo "KINGSAID-TESTKEY.apk uploaded successfully!"
-              break
-            fi
-            sleep 8
-          done
-
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            echo "Uploading KINGSAID-PIP.apk (attempt $i)..."
-            if gh release upload v4.9 KINGSAID-PIP.apk --clobber; then
-              echo "KINGSAID-PIP.apk uploaded successfully!"
-              break
-            fi
-            sleep 8
-          done
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
