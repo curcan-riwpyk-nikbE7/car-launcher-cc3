@@ -74,8 +74,6 @@ jobs:
         run: |
           gh release delete v4.9 -y --cleanup-tag=false || true
           gh release create v4.9 \
-            KINGSAID-TESTKEY.apk \
-            KINGSAID-PIP.apk \
             --title "v4.9 — Виджеты (Яндекс Музыка), GPS-Карта и YouTube" \
             --notes "## Что нового в 4.9
 
@@ -90,3 +88,21 @@ jobs:
           - KINGSAID-PIP.apk — системная сборка (platform, android.uid.system)
 
           Обновление встаёт поверх 4.4–4.8 без потери данных прямо через встроенный механизм обновления в лаунчере!"
+
+          for i in 1 2 3 4 5; do
+            echo "Uploading KINGSAID-TESTKEY.apk (attempt $i)..."
+            if gh release upload v4.9 KINGSAID-TESTKEY.apk --clobber; then
+              echo "KINGSAID-TESTKEY.apk uploaded successfully!"
+              break
+            fi
+            sleep 5
+          done
+
+          for i in 1 2 3 4 5; do
+            echo "Uploading KINGSAID-PIP.apk (attempt $i)..."
+            if gh release upload v4.9 KINGSAID-PIP.apk --clobber; then
+              echo "KINGSAID-PIP.apk uploaded successfully!"
+              break
+            fi
+            sleep 5
+          done
