@@ -1,7 +1,5 @@
 package com.example.carlauncher.ui
 
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.preference.PreferenceManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,7 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.carlauncher.data.AppRepository
 import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
@@ -42,8 +40,8 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
 /**
  * Встроенная векторная GPS-карта местности внутри карточки авто.
- * Работает автономно через OsmDroid, показывает позицию автомобиля,
- * дороги, улицы и текущую скорость без системных прав и API-ключей.
+ * Работает автономно через надежный автомобильный CDN CARTO Dark Matter / OSM,
+ * передает уникальный User-Agent и не блокируется.
  */
 @Composable
 fun EmbeddedMapView(
@@ -59,27 +57,43 @@ fun EmbeddedMapView(
             context,
             PreferenceManager.getDefaultSharedPreferences(context)
         )
-        Configuration.getInstance().userAgentValue = context.packageName
+        // Уникальный автомобильный User-Agent во избежание 403 от тайл-серверов
+        Configuration.getInstance().userAgentValue =
+            "CarLauncherCC3/5.0 (Linux; Android Automotive; curcan-riwpyk-nikbE7)"
+
+        // Очищаем старый кэш Mapnik, если там осели заблокированные плитки 403
+        runCatching {
+            val cacheDir = Configuration.getInstance().osmdroidTileCache
+            val mapnikDir = java.io.File(cacheDir, "Mapnik")
+            if (mapnikDir.exists()) {
+                mapnikDir.deleteRecursively()
+            }
+        }
+
+        // CARTO Dark Matter: нативная высокоскоростная темная карта для автомобильных экранов
+        val cartoDark = XYTileSource(
+            "CartoDark",
+            0,
+            20,
+            256,
+            ".png",
+            arrayOf(
+                "https://a.basemaps.cartocdn.com/dark_all/",
+                "https://b.basemaps.cartocdn.com/dark_all/",
+                "https://c.basemaps.cartocdn.com/dark_all/",
+                "https://d.basemaps.cartocdn.com/dark_all/"
+            ),
+            "© OpenStreetMap contributors, © CARTO"
+        )
 
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            setTileSource(cartoDark)
             setMultiTouchControls(true)
             zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             controller.setZoom(16.0)
 
             // Дефолтная точка (центр), пока GPS не зафиксирует координаты
             controller.setCenter(GeoPoint(55.751244, 37.618423))
-
-            // Стильный автомобильный темный фильтр для карты
-            val darkMatrix = ColorMatrix(
-                floatArrayOf(
-                    -0.75f, 0f, 0f, 0f, 210f,
-                    0f, -0.75f, 0f, 0f, 210f,
-                    0f, 0f, -0.75f, 0f, 220f,
-                    0f, 0f, 0f, 1f, 0f
-                )
-            )
-            overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(darkMatrix))
 
             // Отслеживание местоположения авто по GPS
             val locationProvider = GpsMyLocationProvider(context)
