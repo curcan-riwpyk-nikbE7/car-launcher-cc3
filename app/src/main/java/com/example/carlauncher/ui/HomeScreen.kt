@@ -457,10 +457,7 @@ fun HomeScreen(
                                 AppRepository.launchFirstAvailable(context, AppRepository.NAVIGATION)
                             }
                             SettingsStore.CARD_MODE_YOUTUBE -> {
-                                val pkg = AppRepository.YOUTUBE.firstOrNull {
-                                    AppRepository.isInstalled(context, it)
-                                } ?: "com.google.android.youtube"
-                                AppRepository.launchPackage(context, pkg)
+                                AppRepository.launchFirstAvailable(context, AppRepository.VIDEO)
                             }
                             else -> {
                                 val a = speedApp
