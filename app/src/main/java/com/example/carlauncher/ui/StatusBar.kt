@@ -139,7 +139,7 @@ fun TopStatusStrip(
                     .size(32.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.08f))
-                    .clickable { AppRepository.launchFirstAvailable(context, AppRepository.DVR, fallback = AppRepository.CAMERA) },
+                    .clickable { AppRepository.launchFirstAvailable(context, AppRepository.DVR, labels = AppRepository.DVR_LABELS) },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

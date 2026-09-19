@@ -234,6 +234,12 @@ object AppRepository {
         "com.ts.carsetting", "com.android.car.settings"
     )
 
+    val DVR = listOf(
+        "com.reglink.dvr", "com.hzbhd.dvr", "com.syu.dvr", "com.ts.dvr",
+        "com.microntek.dvr", "com.android.camera", "com.android.camera2", "com.google.android.GoogleCamera"
+    )
+    val DVR_LABELS = listOf("DVR", "Регистратор", "Видеорегистратор", "Камера")
+
     // --- Подписи под иконками штатных приложений ---
     // Пакеты у каждого производителя свои, а названия почти одинаковые.
     // Списки собраны по реальным ГУ, включая CC3: AC, Car Info, DSP,
