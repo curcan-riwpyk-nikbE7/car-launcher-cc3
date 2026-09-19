@@ -25,6 +25,12 @@
     -->
     <uses-permission android:name="android.permission.ACTIVITY_EMBEDDING"
         tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.ADD_TRUSTED_DISPLAY"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.INJECT_EVENTS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.START_ANY_ACTIVITY"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- Держать окно чужого приложения внутри своей карточки -->
     <uses-permission android:name="android.permission.INTERNAL_SYSTEM_WINDOW"

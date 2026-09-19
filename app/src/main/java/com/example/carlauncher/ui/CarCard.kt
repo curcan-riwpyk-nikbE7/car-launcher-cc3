@@ -332,7 +332,8 @@ fun CarCard(
         // в штатных лаунчерах) и «сменить приложение». Строка лежит
         // ПОД поверхностью приложения, а не поверх неё: Compose не
         // умеет рисовать поверх SurfaceView в той же иерархии.
-        if (embeddedPackage != null) {
+        if (contentMode == SettingsStore.CARD_MODE_EMBEDDED || embeddedPackage != null) {
+            val pkgToEmbed = embeddedPackage ?: speedApp?.packageName ?: "ru.yandex.yandexnavi"
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -340,21 +341,18 @@ fun CarCard(
             ) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     EmbeddedAppView(
-                        packageName = embeddedPackage,
+                        packageName = pkgToEmbed,
                         modifier = Modifier.fillMaxSize(),
                         onFailed = onEmbedFailed
                     )
-                    // Быстрые маршруты ПОВЕРХ карты, как у Reglink/CC3.
-                    // Показываются только для навигаторов; Compose рисует
-                    // поверх SurfaceView (тот живёт в отдельном Surface
-                    // под окном лаунчера), поэтому кнопки видны и нажимаемы.
                     NaviQuickOverlay(
                         modifier = Modifier.align(Alignment.TopStart),
-                        navigatorPkg = embeddedPackage
+                        navigatorPkg = pkgToEmbed
                     )
                 }
                 EmbedCardBar(
                     app = speedApp,
+                    title = speedApp?.label ?: "Встроенное окно",
                     onBackToSpeed = onBackToSpeed,
                     onFullscreen = onOpenFullscreen,
                     onPickApp = onSpeedLongClick

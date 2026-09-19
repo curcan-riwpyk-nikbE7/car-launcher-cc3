@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Speed
@@ -116,6 +117,17 @@ fun CardContentModeDialog(
                     selected = currentMode == SettingsStore.CARD_MODE_YOUTUBE,
                     onClick = {
                         onSelectMode(SettingsStore.CARD_MODE_YOUTUBE)
+                        onDismiss()
+                    }
+                )
+
+                ModeItem(
+                    icon = Icons.Rounded.Layers,
+                    title = "Встроенное окно (DriveDeck)",
+                    subtitle = "Нативные Яндекс.Карты / Навигатор с управлением",
+                    selected = currentMode == SettingsStore.CARD_MODE_EMBEDDED,
+                    onClick = {
+                        onSelectMode(SettingsStore.CARD_MODE_EMBEDDED)
                         onDismiss()
                     }
                 )

@@ -45,6 +45,7 @@ object SettingsStore {
     const val CARD_MODE_MAP = "map"
     const val CARD_MODE_WIDGET = "widget"
     const val CARD_MODE_YOUTUBE = "youtube"
+    const val CARD_MODE_EMBEDDED = "embedded"
 
     private const val K_CARD_CONTENT_MODE = "set_card_content_mode"
     private const val K_CARD_WIDGET_ID = "set_card_widget_id"

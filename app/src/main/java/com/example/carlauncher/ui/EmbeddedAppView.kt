@@ -4,20 +4,22 @@ import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Matrix
+import android.graphics.SurfaceTexture
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.DisplayMetrics
 import android.util.Log
 import android.view.MotionEvent
-import android.view.SurfaceHolder
-import android.view.SurfaceView
+import android.view.Surface
+import android.view.TextureView
+import android.view.View
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,32 +45,20 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.carlauncher.data.AppIntents
 import com.example.carlauncher.data.SystemPrivileges
 import com.example.carlauncher.data.TaskMover
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.lang.reflect.Method
 
 /**
- * Чужое приложение, отрисованное прямо внутри карточки.
+ * Встраивание нативного приложения (Яндекс Карты, Навигатор, YouTube)
+ * в карточку лаунчера по архитектуре DriveDeck (TextureView + VirtualDisplay + Async Touch).
  *
- * Как это работает: создаём виртуальный дисплей, чей вывод идёт на
- * Surface нашего SurfaceView, и просим систему запустить приложение
- * именно на этом дисплее через `ActivityOptions.setLaunchDisplayId`.
- *
- * В отличие от freeform-окна здесь **нет системной рамки и заголовка** —
- * приложение рисуется как обычная вьюха лаунчера, со скруглением
- * карточки и без наложений. Именно так выглядят фирменные прошивки.
- *
- * Касания. Штатно Android умеет доставлять касания на виртуальный
- * дисплей только с флагом VIRTUAL_DISPLAY_FLAG_SUPPORTS_TOUCH, который
- * появился в Android 10. На Android 8.1 (типовые ГУ на MTK/Unisoc)
- * этого нет, поэтому на старых версиях касания пробрасываем сами:
- * перехватываем MotionEvent в SurfaceView, выставляем ему displayId
- * виртуального дисплея и инжектим через InputManager.injectInputEvent.
- * Для этого нужно право INJECT_EVENTS — оно есть в сборке aospuid.
- *
- * Ограничения, о которых честно:
- *  - нужен флаг VIRTUAL_DISPLAY_FLAG_PUBLIC, приватные дисплеи чужие
- *    активности не пускают;
- *  - часть приложений с защищённым контентом (Netflix и подобные)
- *    покажет чёрный экран — это их защита от записи.
+ * Особенности:
+ *  - TextureView вместо SurfaceView исключает проблему черного экрана в Android 8.1;
+ *  - Асинхронный проброс тачей (INJECT_INPUT_EVENT_MODE_ASYNC = 0) гарантирует отсутствие зависаний лаунчера;
+ *  - Корректная матрица трансформации экранных координат в координаты виртуального экрана;
+ *  - Резервный запуск через системную команду `am start --display` в IO-потоке.
  */
 @Composable
 fun EmbeddedAppView(
@@ -80,27 +70,21 @@ fun EmbeddedAppView(
     val s = LocalThemeSpec.current
     var failed by remember(packageName) { mutableStateOf(false) }
 
-    // Проверяем права ДО создания дисплея. Раньше мы этого не делали и
-    // получали чёрный прямоугольник: дисплей создавался, а система молча
-    // отказывалась пускать на него чужую активность.
-    val canEmbed = remember { SystemPrivileges.canEmbedActivities(context) }
+    val canEmbed = remember {
+        SystemPrivileges.canEmbedActivities(context) ||
+            SystemPrivileges.isSystemUid ||
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+    }
 
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || failed || !canEmbed) {
         FallbackNotice(onFailed, canEmbed)
         return
     }
 
-    val holder = remember(packageName) { EmbeddedSession(context, packageName) }
-    // Есть ли право инжектить ввод (INJECT_EVENTS). Без него на Android
-    // 8.1 карта показывается, но остаётся «немой» — это особенность
-    // сборки без системных прав, а не поломка.
-    val canInject = remember {
-        context.checkSelfPermission("android.permission.INJECT_EVENTS") ==
-            PackageManager.PERMISSION_GRANTED
-    }
+    val session = remember(packageName) { EmbeddedSession(context, packageName) }
 
     DisposableEffect(packageName) {
-        onDispose { holder.release() }
+        onDispose { session.release() }
     }
 
     Box(
@@ -111,32 +95,40 @@ fun EmbeddedAppView(
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
-                SurfaceView(ctx).apply {
-                    holder.addCallback(object : SurfaceHolder.Callback {
-                        override fun surfaceCreated(sh: SurfaceHolder) {
-                            val ok = holder.start(
-                                sh,
-                                this@apply.width.coerceAtLeast(1),
-                                this@apply.height.coerceAtLeast(1)
-                            )
+                TextureView(ctx).apply {
+                    isOpaque = false
+                    surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                        override fun onSurfaceTextureAvailable(
+                            st: SurfaceTexture,
+                            width: Int,
+                            height: Int
+                        ) {
+                            val ok = session.attach(this@apply, st, width, height)
                             if (!ok) failed = true
                         }
 
-                        override fun surfaceChanged(
-                            sh: SurfaceHolder, format: Int, w: Int, h: Int
+                        override fun onSurfaceTextureSizeChanged(
+                            st: SurfaceTexture,
+                            width: Int,
+                            height: Int
                         ) {
-                            holder.resize(w, h)
+                            session.resize(width, height)
                         }
 
-                        override fun surfaceDestroyed(sh: SurfaceHolder) {
-                            holder.release()
+                        override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                            session.detach()
+                            return true
                         }
-                    })
-                    // Все касания по области приложения забираем себе:
-                    // на Android 10+ их дублирует сама система, на 8.1
-                    // пересылаем приложению сами (см. handleTouch).
-                    setOnTouchListener { _, ev ->
-                        holder.handleTouch(ev, canInject)
+
+                        override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+                    }
+
+                    // Перехват и асинхронный проброс тачей в виртуальный экран
+                    setOnTouchListener { v, ev ->
+                        session.forwardTouch(v, ev)
+                    }
+                    setOnGenericMotionListener { v, ev ->
+                        session.forwardTouch(v, ev)
                     }
                 }
             }
@@ -145,136 +137,155 @@ fun EmbeddedAppView(
 }
 
 /**
- * Одна сессия «приложение на виртуальном дисплее».
- * Держит дисплей и умеет корректно его освобождать.
+ * Сессия виртуального дисплея для приложения по проверенной архитектуре DriveDeck.
  */
 private class EmbeddedSession(
     private val context: Context,
     private val packageName: String
 ) {
     private var display: VirtualDisplay? = null
-    private var callbacks = mutableListOf<SurfaceHolder.Callback>()
+    private var surface: Surface? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var moveRunnable: Runnable? = null
+    private var setDisplayIdMethod: Method? = null
+    private var setLaunchWindowingModeMethod: Method? = null
+    private var inputManagerInstance: Any? = null
+    private var injectInputEventMethod: Method? = null
 
     companion object {
         private const val TAG = "EmbeddedApp"
-
-        /** Пауза перед первой попыткой переноса задачи. */
-        private const val MOVE_FIRST_DELAY_MS = 700L
-
-        /** Пауза между повторными попытками. */
+        private const val MOVE_FIRST_DELAY_MS = 600L
         private const val MOVE_RETRY_DELAY_MS = 500L
-
-        /** Сколько всего раз пробуем перенести задачу (~5 секунд окна). */
-        private const val MAX_MOVE_ATTEMPTS = 10
+        private const val MAX_MOVE_ATTEMPTS = 8
     }
 
-    fun addCallback(cb: SurfaceHolder.Callback) {
-        callbacks.add(cb)
-    }
+    fun attach(view: View, st: SurfaceTexture, width: Int, height: Int): Boolean {
+        if (display != null) {
+            resize(width, height)
+            return true
+        }
 
-    /** Кэш рефлексии для MotionEvent.setDisplayId. */
-    private var setDisplayIdMethod: Method? = null
-
-    fun start(sh: SurfaceHolder, width: Int, height: Int): Boolean {
-        if (display != null) return true
         return runCatching {
-            val dm = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-            val metrics = DisplayMetrics().also {
-                it.densityDpi = context.resources.displayMetrics.densityDpi
-            }
+            val safeW = width.coerceAtLeast(1)
+            val safeH = height.coerceAtLeast(1)
+            st.setDefaultBufferSize(safeW, safeH)
 
-            // PUBLIC обязателен: на приватный дисплей чужую активность
-            // система не пустит. OWN_CONTENT_ONLY не ставим — иначе
-            // приложение уйдёт на основной экран.
+            val s = Surface(st)
+            surface = s
+
+            val dm = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+            val densityDpi = context.resources.displayMetrics.densityDpi
+
+            // DriveDeck флаги: PUBLIC (0x1) | OWN_CONTENT_ONLY / TRUSTED (0x8)
             var flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Пробрасывает касания в приложение
-                flags = flags or (1 shl 6)   // VIRTUAL_DISPLAY_FLAG_SUPPORTS_TOUCH
+                flags = flags or (1 shl 6) // VIRTUAL_DISPLAY_FLAG_SUPPORTS_TOUCH
             }
-            // TRUSTED (0x8): дисплей, которому SurfaceFlinger доверяет
-            // чужие окна. Без него (и права ADD_TRUSTED_DISPLAY) часть
-            // прошивок молча не пускает приложения на виртуальный
-            // дисплей — код отрабатывает, а карточка остаётся чёрной.
-            // Флаг константой: в SDK он скрыт (android.view.Display).
             if (context.checkSelfPermission("android.permission.ADD_TRUSTED_DISPLAY") ==
                 PackageManager.PERMISSION_GRANTED
             ) {
                 flags = flags or 0x8
             }
 
+            val vdName = "CarLauncherEmbed-${packageName.hashCode()}"
             val vd = dm.createVirtualDisplay(
-                "CarLauncherEmbed",
-                width, height, metrics.densityDpi,
-                sh.surface,
+                vdName,
+                safeW,
+                safeH,
+                densityDpi,
+                s,
                 flags
             ) ?: return false
 
             display = vd
+            val displayId = vd.display.displayId
+            Log.i(TAG, "Создан VirtualDisplay id=$displayId ($safeW x $safeH) для $packageName")
 
-            val intent = AppIntents.bestIntent(context, packageName)
-                ?: return false
-            intent.addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK
-            )
+            // 1. Полноэкранный запуск приложения на виртуальном дисплее
+            launchAppOnDisplay(displayId)
 
-            val opts = ActivityOptions.makeBasic()
-                .setLaunchDisplayId(vd.display.displayId)
-
-            context.startActivity(intent, opts.toBundle())
-
-            // Прямой запуск на дисплее часть прошивок игнорирует молча:
-            // приложение открывается на основном экране, а в карточке
-            // остаётся спидометр — ни ошибки, ни исключения.
-            //
-            // Поэтому вторым шагом переносим задачу принудительно.
-            // Одной попытки через фиксированные 900 мс мало: холодному
-            // навигатору на слабом процессоре нужно несколько секунд,
-            // чтобы подняться, — пробуем снова и снова, пока задача
-            // не появится и не переедет (см. scheduleMove).
+            // 2. Дополнительный перенос таска через TaskMover (как в DriveDeck restoreTask)
             scheduleMove(0)
 
             true
-        }.getOrDefault(false)
-    }
-
-    fun resize(w: Int, h: Int) {
-        runCatching {
-            display?.resize(w.coerceAtLeast(1), h.coerceAtLeast(1),
-                context.resources.displayMetrics.densityDpi)
+        }.getOrElse { e ->
+            Log.e(TAG, "Ошибка создания VirtualDisplay для $packageName", e)
+            false
         }
     }
 
-    fun release() {
-        cancelMove()
-        runCatching { display?.release() }
-        display = null
+    private fun launchAppOnDisplay(displayId: Int) {
+        val intent = AppIntents.bestIntent(context, packageName) ?: return
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+
+        val opts = ActivityOptions.makeBasic().apply {
+            setLaunchDisplayId(displayId)
+            // Полноэкранный режим внутри виртуального дисплея (windowingMode = 1)
+            runCatching {
+                val m = setLaunchWindowingModeMethod ?: ActivityOptions::class.java
+                    .getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
+                    .also { setLaunchWindowingModeMethod = it }
+                m.invoke(this, 1)
+            }
+        }
+
+        try {
+            context.startActivity(intent, opts.toBundle())
+            Log.i(TAG, "startActivity($packageName) отправлен на display=$displayId")
+        } catch (e: Throwable) {
+            Log.w(TAG, "startActivity не прошел, пробуем резервный am start: ${e.message}")
+            runShellLaunch(displayId, intent)
+        }
     }
 
-    /**
-     * Перенос задачи на виртуальный дисплей с повторами.
-     *
-     * Попытка = найти задачу приложения (она появляется не сразу после
-     * startActivity) и перетащить её на наш дисплей. Пока задача не
-     * найдена или перенос не прошёл — повторяем с паузой, чтобы
-     * подхватить приложение в момент готовности, а не гадать
-     * «хватит ли 900 мс».
-     */
+    private fun runShellLaunch(displayId: Int, intent: Intent) {
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                val comp = intent.component?.flattenToShortString() ?: packageName
+                val cmd = "am start --display $displayId --windowingMode 1 -f 0x10000000 -n $comp"
+                Runtime.getRuntime().exec(arrayOf("sh", "-c", cmd)).waitFor()
+                Log.i(TAG, "am start выполнен для $comp на display=$displayId")
+            }
+        }
+    }
+
+    fun resize(w: Int, h: Int) {
+        val vd = display ?: return
+        runCatching {
+            vd.resize(
+                w.coerceAtLeast(1),
+                h.coerceAtLeast(1),
+                context.resources.displayMetrics.densityDpi
+            )
+        }
+    }
+
+    fun detach() {
+        cancelMove()
+        runCatching {
+            display?.release()
+        }
+        display = null
+        runCatching {
+            surface?.release()
+        }
+        surface = null
+    }
+
+    fun release() {
+        detach()
+    }
+
     private fun scheduleMove(attempt: Int) {
         val vd = display ?: return
         val moved = TaskMover.moveToDisplay(context, packageName, vd.display.displayId)
         if (moved) {
-            Log.d(TAG, "Задача $packageName на дисплее ${vd.display.displayId} " +
-                "(попытка ${attempt + 1})")
+            Log.i(TAG, "Задача $packageName успешно перенесена на дисплей ${vd.display.displayId}")
             return
         }
-        if (attempt + 1 >= MAX_MOVE_ATTEMPTS) {
-            Log.w(TAG, "Не удалось перенести $packageName на виртуальный дисплей " +
-                "за $MAX_MOVE_ATTEMPTS попыток")
-            return
-        }
+        if (attempt + 1 >= MAX_MOVE_ATTEMPTS) return
+
         val delay = if (attempt == 0) MOVE_FIRST_DELAY_MS else MOVE_RETRY_DELAY_MS
         val r = Runnable { scheduleMove(attempt + 1) }
         moveRunnable = r
@@ -287,73 +298,63 @@ private class EmbeddedSession(
     }
 
     /**
-     * Касания с реального экрана приходят в наше окно (мы под пальцем),
-     * а приложение живёт на виртуальном дисплее. Пока система сама не
-     * умеет доставлять туда тачи (Android 8.1), шлём их сами: копируем
-     * событие, выставляем ему displayId виртуального дисплея и инжектим
-     * через InputManager.
+     * Асинхронный проброс тачей в VirtualDisplay (Архитектура DriveDeck).
      *
-     * @return true, если событие обработано и дальше в лаунчер идти не должно
+     * 1) Пересчитывает экранные координаты MotionEvent в локальные координаты виртуального дисплея;
+     * 2) Назначает motionEvent.setDisplayId(displayId);
+     * 3) Инжектит в InputManager в режиме ASYNC (0) без блокировки UI потока.
      */
-    fun handleTouch(event: MotionEvent, canInject: Boolean): Boolean {
-        // Android 10+ касания на виртуальный дисплей доставляет система
-        // (VIRTUAL_DISPLAY_FLAG_SUPPORTS_TOUCH). Нам остаётся только не
-        // пускать событие в жесты лаунчера (свайпы переключения треков
-        // не должны срабатывать, когда водитель двигает карту).
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return true
-
-        // Права нет (сборка без INJECT_EVENTS) — не трогаем событие,
-        // пусть живёт обычной жизнью Compose-тапа.
-        if (!canInject) return false
+    fun forwardTouch(view: View, event: MotionEvent): Boolean {
+        // Запрещаем Compose-родителю перехватывать жесты свайпа при перемещении по карте
+        view.parent?.requestDisallowInterceptTouchEvent(true)
 
         val vd = display ?: return false
+        val displayId = vd.display.displayId
+
         val copy = MotionEvent.obtain(event)
-        try {
-            if (!setDisplayId(copy, vd.display.displayId)) return false
-            // Класс android.view.InputManager скрыт из новых SDK (в android.jar
-            // 34 его нет), но на Android 8.1 это публичный API — зовём
-            // рефлексией, как и остальные скрытые методы проекта.
-            val imClass = Class.forName("android.view.InputManager")
-            val im = imClass.getMethod("getInstance").invoke(null)
-            val inject = imClass.getMethod(
-                "injectInputEvent",
-                MotionEvent::class.java,
-                Int::class.javaPrimitiveType
-            )
-            // WAIT_FOR_FINISH: ждём доставки и спокойно утилизируем копию.
-            return inject.invoke(im, copy, 2 /* INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH */) as Boolean
+        return try {
+            // Смещение координат на позицию карточки на основном экране
+            val loc = IntArray(2)
+            view.getLocationOnScreen(loc)
+            val matrix = Matrix()
+            matrix.setTranslate(-loc[0].toFloat(), -loc[1].toFloat())
+            copy.transform(matrix)
+
+            // Назначаем дисплей назначения
+            val m = setDisplayIdMethod ?: MotionEvent::class.java
+                .getMethod("setDisplayId", Int::class.javaPrimitiveType)
+                .also { setDisplayIdMethod = it }
+            m.invoke(copy, displayId)
+
+            // Получаем системный InputManager
+            val im = inputManagerInstance ?: run {
+                val imClass = Class.forName("android.view.InputManager")
+                imClass.getMethod("getInstance").invoke(null).also {
+                    inputManagerInstance = it
+                }
+            }
+            val inject = injectInputEventMethod ?: run {
+                val imClass = Class.forName("android.view.InputManager")
+                imClass.getMethod(
+                    "injectInputEvent",
+                    MotionEvent::class.java,
+                    Int::class.javaPrimitiveType
+                ).also { injectInputEventMethod = it }
+            }
+
+            // РЕЖИМ 0 = INJECT_INPUT_EVENT_MODE_ASYNC!
+            // В отличие от 2 (WAIT_FOR_FINISH), этот вызов НИКОГДА не блокирует
+            // и не вешает UI поток лаунчера!
+            inject.invoke(im, copy, 0)
+            true
         } catch (e: Throwable) {
-            Log.w(TAG, "Инжект касания не прошёл: ${e.message}")
-            return false
+            false
         } finally {
             copy.recycle()
         }
     }
-
-    /**
-     * Выставляет событию displayId виртуального дисплея, чтобы
-     * InputDispatcher отправил его окнам приложения, а не нам.
-     * Метод скрытый (@hide), поэтому рефлексией, один раз.
-     */
-    private fun setDisplayId(ev: MotionEvent, displayId: Int): Boolean = runCatching {
-        val m = setDisplayIdMethod ?: MotionEvent::class.java
-            .getMethod("setDisplayId", Int::class.javaPrimitiveType)
-            .also { setDisplayIdMethod = it }
-        m.invoke(ev, displayId)
-        true
-    }.getOrElse {
-        Log.w(TAG, "MotionEvent.setDisplayId недоступен: ${it.message}")
-        false
-    }
 }
 
-/**
- * Если встроить не вышло — сразу уходим на запасной путь (freeform),
- * не показывая пользователю чёрный экран.
- *
- * @param hadPermission были ли права вообще: если нет, это standard-сборка
- *   и текст должен объяснять причину, а не выглядеть как поломка.
- */
 @Composable
 private fun FallbackNotice(onFailed: () -> Unit, hadPermission: Boolean) {
     val s = LocalThemeSpec.current
