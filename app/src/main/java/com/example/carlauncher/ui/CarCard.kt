@@ -259,103 +259,67 @@ fun CarCard(
         }
 
         if (contentMode == SettingsStore.CARD_MODE_MAP) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
             ) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    EmbeddedMapView(
-                        speedKmh = speedKmh,
-                        onOpenFullNavi = onOpenFullscreen,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                EmbedCardBar(
-                    title = "Живая карта (GPS)",
+                EmbeddedMapView(
+                    speedKmh = speedKmh,
+                    onOpenFullNavi = onOpenFullscreen,
                     onBackToSpeed = onBackToSpeed,
-                    onFullscreen = onOpenFullscreen,
-                    onPickApp = onSpeedLongClick
+                    onPickMode = onSpeedLongClick,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
             return@Box
         }
 
         if (contentMode == SettingsStore.CARD_MODE_WIDGET) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
             ) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    AppWidgetCardView(
-                        widgetId = widgetId,
-                        onPickWidget = onPickWidget,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                EmbedCardBar(
-                    title = "Виджет",
-                    onBackToSpeed = onBackToSpeed,
-                    onFullscreen = onOpenFullscreen,
-                    onPickApp = onSpeedLongClick
+                AppWidgetCardView(
+                    widgetId = widgetId,
+                    onPickWidget = onPickWidget,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
             return@Box
         }
 
         if (contentMode == SettingsStore.CARD_MODE_YOUTUBE) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
             ) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    EmbeddedYouTubeView(
-                        onOpenFullscreen = onOpenFullscreen,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                EmbedCardBar(
-                    title = "YouTube",
-                    onBackToSpeed = onBackToSpeed,
-                    onFullscreen = onOpenFullscreen,
-                    onPickApp = onSpeedLongClick
+                EmbeddedYouTubeView(
+                    onOpenFullscreen = onOpenFullscreen,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
             return@Box
         }
 
-        // Приложение занимает карточку целиком, без системной рамки.
-        // Под ним узкая строка управления: название приложения и кнопки
-        // «вернуть спидометр» (тап — карта, ещё тап — спидометр, как
-        // в штатных лаунчерах) и «сменить приложение». Строка лежит
-        // ПОД поверхностью приложения, а не поверх неё: Compose не
-        // умеет рисовать поверх SurfaceView в той же иерархии.
+        // Приложение занимает карточку целиком на весь экран без рамок и лишних полос
         if (contentMode == SettingsStore.CARD_MODE_EMBEDDED || embeddedPackage != null) {
             val pkgToEmbed = embeddedPackage ?: speedApp?.packageName ?: "ru.yandex.yandexnavi"
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
             ) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    EmbeddedAppView(
-                        packageName = pkgToEmbed,
-                        modifier = Modifier.fillMaxSize(),
-                        onFailed = onEmbedFailed
-                    )
-                    NaviQuickOverlay(
-                        modifier = Modifier.align(Alignment.TopStart),
-                        navigatorPkg = pkgToEmbed
-                    )
-                }
-                EmbedCardBar(
-                    app = speedApp,
-                    title = speedApp?.label ?: "Встроенное окно",
-                    onBackToSpeed = onBackToSpeed,
-                    onFullscreen = onOpenFullscreen,
-                    onPickApp = onSpeedLongClick
+                EmbeddedAppView(
+                    packageName = pkgToEmbed,
+                    modifier = Modifier.fillMaxSize(),
+                    onFailed = onEmbedFailed
+                )
+                NaviQuickOverlay(
+                    modifier = Modifier.align(Alignment.TopStart),
+                    navigatorPkg = pkgToEmbed
                 )
             }
             return@Box
@@ -685,47 +649,5 @@ private fun RoundToggle(icon: ImageVector, label: String, onClick: () -> Unit) {
     }
 }
 
-/**
- * Нижняя строка карточки, когда в неё встроено приложение.
- *
- * Слева — название встроенного приложения, справа кнопки: «вернуть
- * спидометр» (карта сворачивается обратно в спидометр) и «сменить
- * приложение». Строка идёт отдельным рядом ПОД поверхностью приложения,
- * поэтому её кнопки всегда видны и нажимаются — поверх SurfaceView
- * Compose рисовать не умеет.
- */
-@Composable
-private fun EmbedCardBar(
-    app: AppInfo? = null,
-    title: String = app?.label ?: "",
-    onBackToSpeed: () -> Unit,
-    onFullscreen: () -> Unit,
-    onPickApp: () -> Unit
-) {
-    val s = LocalThemeSpec.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(46.dp)
-            .background(s.carCardBg.copy(alpha = 0.95f))
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        if (app != null) {
-            AppIcon(app.icon, app.label, Modifier.size(18.dp))
-        }
-        Text(
-            text = title,
-            color = s.textSecondary,
-            fontSize = 12.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            fontFamily = s.fontFamily,
-            modifier = Modifier.weight(1f)
-        )
-        RoundToggle(Icons.Rounded.Speed, "Вернуть спидометр", onBackToSpeed)
-        RoundToggle(Icons.Rounded.OpenInFull, "На весь экран", onFullscreen)
-        RoundToggle(LauncherIcons.Cube, "Сменить режим", onPickApp)
-    }
-}
+
+
