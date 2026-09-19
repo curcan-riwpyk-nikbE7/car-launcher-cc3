@@ -57,40 +57,35 @@ fun EmbeddedMapView(
             context,
             PreferenceManager.getDefaultSharedPreferences(context)
         )
-        // Уникальный автомобильный User-Agent во избежание 403 от тайл-серверов
+        // Уникальный автомобильный User-Agent во избежание 403
         Configuration.getInstance().userAgentValue =
-            "CarLauncherCC3/5.0 (Linux; Android Automotive; curcan-riwpyk-nikbE7)"
+            "CarLauncherCC3/5.2 (Linux; Android Automotive; curcan-riwpyk-nikbE7)"
 
-        // Очищаем старый кэш Mapnik, если там осели заблокированные плитки 403
+        // Очищаем кэш CartoDark (где был водяной знак API KEY) и старый Mapnik
         runCatching {
             val cacheDir = Configuration.getInstance().osmdroidTileCache
+            val cartoDir = java.io.File(cacheDir, "CartoDark")
+            if (cartoDir.exists()) cartoDir.deleteRecursively()
             val mapnikDir = java.io.File(cacheDir, "Mapnik")
-            if (mapnikDir.exists()) {
-                mapnikDir.deleteRecursively()
-            }
+            if (mapnikDir.exists()) mapnikDir.deleteRecursively()
         }
 
-        // CARTO Dark Matter: нативная высокоскоростная темная карта для автомобильных экранов
-        val cartoDark = XYTileSource(
-            "CartoDark",
-            0,
-            20,
-            256,
-            ".png",
-            arrayOf(
-                "https://a.basemaps.cartocdn.com/dark_all/",
-                "https://b.basemaps.cartocdn.com/dark_all/",
-                "https://c.basemaps.cartocdn.com/dark_all/",
-                "https://d.basemaps.cartocdn.com/dark_all/"
-            ),
-            "© OpenStreetMap contributors, © CARTO"
-        )
-
         MapView(context).apply {
-            setTileSource(cartoDark)
+            setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
             zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             controller.setZoom(16.0)
+
+            // Автомобильный темный фильтр без водяных знаков
+            val darkMatrix = android.graphics.ColorMatrix(
+                floatArrayOf(
+                    -0.75f, 0f, 0f, 0f, 210f,
+                    0f, -0.75f, 0f, 0f, 210f,
+                    0f, 0f, -0.75f, 0f, 220f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+            overlayManager.tilesOverlay.setColorFilter(android.graphics.ColorMatrixColorFilter(darkMatrix))
 
             // Дефолтная точка (центр), пока GPS не зафиксирует координаты
             controller.setCenter(GeoPoint(55.751244, 37.618423))
