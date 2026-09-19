@@ -39,6 +39,12 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Videocam
+import com.example.carlauncher.AllAppsActivity
+import com.example.carlauncher.SettingsActivity
+import com.example.carlauncher.data.AppRepository
 import com.example.carlauncher.data.QuickControls
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.WifiOff
@@ -81,15 +87,70 @@ fun TopStatusStrip(
     onVoice: (() -> Unit)? = null
 ) {
     val h = dimens().statusBarHeight
+    val context = LocalContext.current
+    val s = LocalThemeSpec.current
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(h)
-        // Фона нет намеренно. Затемняющий градиент был нужен, пока
-        // полоса лежала поверх картинки машины и значки терялись
-        // на светлых местах. Теперь она занимает свою высоту над
-        // карточками, под ней чистый фон экрана — как у CC3.
     ) {
+        // Левые кнопки TEYES: Меню всех приложений, Настройки лаунчера, DVR
+        Row(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable { context.startActivity(Intent(context, AllAppsActivity::class.java)) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.Apps,
+                    contentDescription = "Все приложения",
+                    tint = s.accent,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable { context.startActivity(Intent(context, SettingsActivity::class.java)) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.Settings,
+                    contentDescription = "Настройки",
+                    tint = s.textPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable { AppRepository.launchFirstAvailable(context, AppRepository.DVR, fallback = AppRepository.CAMERA) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.Videocam,
+                    contentDescription = "DVR",
+                    tint = s.textDim,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
         TopStatusBar(
             weatherKey = weatherKey,
             onOpenShade = onOpenShade,

@@ -24,7 +24,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -253,13 +255,51 @@ private fun AppGridItem(
         verticalArrangement = Arrangement.Center
     ) {
         if (app != null) {
-            AppIcon(
-                drawable = app.icon,
-                contentDescription = app.label,
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            )
+            when (app.packageName) {
+                "builtin:all_apps" -> {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(s.accent.copy(alpha = 0.18f))
+                            .border(1.dp, s.accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.Apps,
+                            contentDescription = app.label,
+                            tint = s.accent,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+                "builtin:settings" -> {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(s.accent.copy(alpha = 0.18f))
+                            .border(1.dp, s.accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.Settings,
+                            contentDescription = app.label,
+                            tint = s.accent,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+                else -> {
+                    AppIcon(
+                        drawable = app.icon,
+                        contentDescription = app.label,
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                }
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = app.label,

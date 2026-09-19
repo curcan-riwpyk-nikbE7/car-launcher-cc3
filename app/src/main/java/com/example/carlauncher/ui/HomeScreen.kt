@@ -145,7 +145,13 @@ fun HomeScreen(
     )
     val favorites = remember(revision, apps) {
         favSlots.map { slot ->
-            store.get(slot)?.let { pkg -> apps.firstOrNull { it.packageName == pkg } }
+            store.get(slot)?.let { key ->
+                when (key) {
+                    "builtin:all_apps" -> AppInfo("Все приложения", "builtin:all_apps", "all_apps", null)
+                    "builtin:settings" -> AppInfo("Настройки", "builtin:settings", "settings", null)
+                    else -> apps.firstOrNull { it.packageName == key }
+                }
+            }
         }
     }
 

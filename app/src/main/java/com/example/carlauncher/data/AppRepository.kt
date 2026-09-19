@@ -44,6 +44,22 @@ object AppRepository {
 
     /** Запуск конкретной активности. */
     fun launch(context: Context, app: AppInfo) {
+        if (app.packageName == "builtin:all_apps" || app.activityName == "all_apps") {
+            runCatching {
+                val intent = Intent(context, Class.forName("com.example.carlauncher.AllAppsActivity"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            }
+            return
+        }
+        if (app.packageName == "builtin:settings" || app.activityName == "settings") {
+            runCatching {
+                val intent = Intent(context, Class.forName("com.example.carlauncher.SettingsActivity"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            }
+            return
+        }
         SettingsStore.recordRecent(app.packageName)
         val intent = Intent(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_LAUNCHER)
