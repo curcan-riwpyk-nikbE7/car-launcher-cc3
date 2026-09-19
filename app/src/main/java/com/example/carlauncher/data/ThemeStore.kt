@@ -18,12 +18,12 @@ object ThemeStore {
     private var prefs: android.content.SharedPreferences? = null
 
     /** Текущий id темы. Читается всеми экранами. */
-    val current: MutableState<String> = mutableStateOf("violet")
+    val current: MutableState<String> = mutableStateOf("emerald")
 
     fun init(context: Context) {
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
-        current.value = p.getString(ShortcutStore.KEY_THEME, "violet") ?: "violet"
+        current.value = p.getString(ShortcutStore.KEY_THEME, "emerald") ?: "emerald"
     }
 
     fun set(id: String) {

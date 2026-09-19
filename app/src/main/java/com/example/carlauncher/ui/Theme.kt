@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /** Где расположена панель управления. Это меняет всю раскладку экрана. */
-enum class LayoutStyle { SidebarLeft, SidebarRight, BottomDock, TopBar, GridDock }
+enum class LayoutStyle { SidebarLeft, SidebarRight, BottomDock, TopBar, GridDock, TriPanel }
 
 /**
  * Как рисуется скорость на карточке авто.
@@ -91,8 +91,50 @@ data class ThemeSpec(
 // Свои семь убраны намеренно — задача была повторить оригинал, а не
 // расширять. Палитра снята пипеткой со скриншотов и промо-галереи.
 
+// ────────────────────────────── 0. EMEARLD (TEYES.PRO) ──────────────────────────────
+val EmeraldTheme = ThemeSpec(
+    id = "emerald",
+    title = "TEYES Emerald",
+    subtitle = "Изумрудная морская волна · стиль TEYES.PRO",
+    bg = listOf(
+        Color(0xFF07272F),
+        Color(0xFF0A3742),
+        Color(0xFF0F4B58),
+        Color(0xFF092B33)
+    ),
+    cardBg = Color(0xFF0C2B33),
+    cardStroke = Color(0x333EE0D0),
+    strokeWidth = 1.dp,
+    panelBg = Color(0xFF07242B),
+    accent = Color(0xFF22E4D6),
+    accent2 = Color(0xFFFFB300),
+    onAccent = Color(0xFF03191D),
+    textPrimary = Color(0xFFF0FCFC),
+    textSecondary = Color(0xFF8DC0C8),
+    textDim = Color(0xFF55828A),
+    carCardBg = Color(0xFF09252C),
+    mediaGradient = listOf(Color(0xFF0F4E5A), Color(0xFF166D7D), Color(0xFF22E4D6)),
+    mediaCornerTint = Color(0x6622E4D6),
+    radioGradient = listOf(Color(0xFF0C3842), Color(0xFF082228)),
+    overlayBg = Color(0xEE061F25),
+    cardCorner = 24.dp,
+    iconCorner = 18.dp,
+    buttonCorner = 20.dp,
+    layout = LayoutStyle.TriPanel,
+    speedStyle = SpeedStyle.DigitalLarge,
+    clockStyle = ClockStyle.DigitalLarge,
+    showCarImage = true,
+    phoneMedia = true,
+    carGridImage = true,
+    tintCar = true,
+    showDecorRings = false,
+    uppercaseLabels = false,
+    monospace = false,
+    isLight = false
+)
+
 // ────────────────────────────── 1. VIOLET ──────────────────────────────
-private val VioletTheme = ThemeSpec(
+val VioletTheme = ThemeSpec(
     id = "violet",
     title = "Violet",
     subtitle = "Фиолетовый · как на CC3 по умолчанию",
@@ -303,13 +345,55 @@ private val CorollaTheme = ThemeSpec(
     isLight = false
 )
 
+// ────────────────────────────── 6. DAY SILVER (СВЕТЛЫЙ) ──────────────────────────────
+val DaySilverTheme = ThemeSpec(
+    id = "day_silver",
+    title = "Day Silver",
+    subtitle = "Дневной светлый · супер-контраст на солнце",
+    bg = listOf(
+        Color(0xFFE8ECEF),
+        Color(0xFFF2F4F7),
+        Color(0xFFE4E9ED),
+        Color(0xFFDCE2E7)
+    ),
+    cardBg = Color(0xFFFFFFFF),
+    cardStroke = Color(0x22000000),
+    strokeWidth = 1.dp,
+    panelBg = Color(0xFFE2E7EC),
+    accent = Color(0xFF007AFF),
+    accent2 = Color(0xFF34C759),
+    onAccent = Color(0xFFFFFFFF),
+    textPrimary = Color(0xFF1A1D20),
+    textSecondary = Color(0xFF5A626A),
+    textDim = Color(0xFF8A939D),
+    carCardBg = Color(0xFFF7F9FA),
+    mediaGradient = listOf(Color(0xFF007AFF), Color(0xFF5856D6), Color(0xFFAF52DE)),
+    mediaCornerTint = Color(0x33007AFF),
+    radioGradient = listOf(Color(0xFFE5E9EE), Color(0xFFD2D8E0)),
+    overlayBg = Color(0xEEFFFFFF),
+    cardCorner = 24.dp,
+    iconCorner = 18.dp,
+    buttonCorner = 20.dp,
+    layout = LayoutStyle.SidebarLeft,
+    speedStyle = SpeedStyle.DigitalLarge,
+    clockStyle = ClockStyle.DigitalLarge,
+    showCarImage = true,
+    phoneMedia = true,
+    carGridImage = true,
+    tintCar = false,
+    showDecorRings = false,
+    uppercaseLabels = false,
+    monospace = false,
+    isLight = true
+)
+
 /** Все темы в порядке показа в галерее. */
-val AllThemes = listOf(VioletTheme, BlueTheme, GoldTheme, BlackTheme, CorollaTheme)
+val AllThemes = listOf(EmeraldTheme, VioletTheme, BlueTheme, GoldTheme, BlackTheme, DaySilverTheme, CorollaTheme)
 
 fun themeById(id: String?): ThemeSpec =
-    AllThemes.firstOrNull { it.id == id } ?: VioletTheme
+    AllThemes.firstOrNull { it.id == id } ?: EmeraldTheme
 
-val LocalThemeSpec = staticCompositionLocalOf { VioletTheme }
+val LocalThemeSpec = staticCompositionLocalOf { EmeraldTheme }
 
 @Composable
 fun CarLauncherTheme(spec: ThemeSpec = VioletTheme, content: @Composable () -> Unit) {

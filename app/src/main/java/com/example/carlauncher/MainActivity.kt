@@ -100,14 +100,33 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startWidgetPicker() {
+    private var isCustomWidgetPickerOpen by mutableStateOf(false)
+
+    private fun handleWidgetSelected(info: AppWidgetProviderInfo) {
         val widgetId = AppWidgetHostManager.allocateAppWidgetId()
         if (widgetId <= 0) return
-        pendingWidgetId = widgetId
-        val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+        val wm = AppWidgetManager.getInstance(this)
+        val success = wm.bindAppWidgetIdIfAllowed(widgetId, info.provider)
+        if (success) {
+            if (info.configure != null) {
+                pendingWidgetId = widgetId
+                val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                    component = info.configure
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                }
+                configureWidgetLauncher.launch(intent)
+            } else {
+                SettingsStore.setCardWidgetId(widgetId)
+                SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
+            }
+        } else {
+            pendingWidgetId = widgetId
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
+            }
+            bindWidgetLauncher.launch(intent)
         }
-        pickWidgetLauncher.launch(pickIntent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -146,8 +165,18 @@ class MainActivity : ComponentActivity() {
                         // громкой музыке это единственный надёжный способ.
                         onVoice = { assistant.listenNow() },
                         onScreenOff = { dimScreen(true) },
-                        onPickWidget = { startWidgetPicker() }
+                        onPickWidget = { isCustomWidgetPickerOpen = true }
                     )
+
+                    if (isCustomWidgetPickerOpen) {
+                        WidgetPickerDialog(
+                            onSelectWidget = { info ->
+                                isCustomWidgetPickerOpen = false
+                                handleWidgetSelected(info)
+                            },
+                            onDismiss = { isCustomWidgetPickerOpen = false }
+                        )
+                    }
 
                     VoiceOverlay(
                         state = assistant.state,

@@ -140,7 +140,7 @@ object SettingsStore {
     val speedCardEmbedded: MutableState<Boolean> = mutableStateOf(false)
 
     /** Режим отображения в правой карточке: спидометр, карта, виджет, YouTube. */
-    val cardContentMode: MutableState<String> = mutableStateOf(CARD_MODE_SPEED)
+    val cardContentMode: MutableState<String> = mutableStateOf(CARD_MODE_MAP)
 
     /** ID сохранённого системного виджета (Яндекс Музыка и др.). */
     val cardWidgetId: MutableState<Int> = mutableStateOf(-1)
@@ -194,7 +194,7 @@ object SettingsStore {
         saverEnabled.value = p.getBoolean(K_SAVER_ENABLED, true)
         saverTimeoutMin.value = p.getInt(K_SAVER_TIMEOUT, 2).coerceIn(1, 15)
         speedCardEmbedded.value = p.getBoolean(K_SPEED_EMBEDDED, false)
-        cardContentMode.value = p.getString(K_CARD_CONTENT_MODE, CARD_MODE_SPEED) ?: CARD_MODE_SPEED
+        cardContentMode.value = p.getString(K_CARD_CONTENT_MODE, CARD_MODE_MAP) ?: CARD_MODE_MAP
         cardWidgetId.value = p.getInt(K_CARD_WIDGET_ID, -1)
         homeLat.value = p.getFloat(K_HOME_LAT, 0f).toDouble()
         homeLon.value = p.getFloat(K_HOME_LON, 0f).toDouble()

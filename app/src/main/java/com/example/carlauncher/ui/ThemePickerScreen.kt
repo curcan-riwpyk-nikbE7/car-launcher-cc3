@@ -277,6 +277,48 @@ private fun ThemeMiniature(s: ThemeSpec) {
             panel(Modifier.fillMaxWidth().height(20.dp))
             content(Modifier.fillMaxWidth().weight(1f))
         }
+        LayoutStyle.TriPanel -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Box(
+                modifier = Modifier
+                    .weight(0.9f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(s.cardCorner / 2))
+                    .background(s.cardBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    repeat(2) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                            repeat(3) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .clip(RoundedCornerShape(s.iconCorner / 3))
+                                        .background(s.accent.copy(alpha = 0.75f))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1.3f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(s.cardCorner / 2))
+                    .background(s.carCardBg),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                SpeedGlyph(s)
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(s.cardCorner / 2))
+                    .background(Brush.verticalGradient(s.mediaGradient))
+            )
+        }
     }
 }
 

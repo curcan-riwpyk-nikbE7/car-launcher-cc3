@@ -753,6 +753,47 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth().height(d.dockHeight)
                 )
             }
+            LayoutStyle.TriPanel -> Column(outer) {
+                TopStatusStrip(
+                    weatherKey = weatherKey,
+                    onOpenShade = { shadeOpen = true },
+                    onVoice = onVoice,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TeyesTriPanel(
+                    apps = apps,
+                    favorites = favorites,
+                    nowPlaying = nowPlaying,
+                    speedKmh = speedKmh,
+                    speedApp = speedApp,
+                    onSpeedClick = onSpeedClick,
+                    onSpeedLongClick = onSpeedLongClick,
+                    onPickSlot = { index ->
+                        if (index < favSlots.size) {
+                            pickerSlot = favSlots[index]
+                            pickerTitle = "Выберите приложение"
+                        }
+                    },
+                    onPickWidget = onPickWidget,
+                    onPlayPause = { smartPlayPause(context); revision++ },
+                    onNext = { MediaControl.next(context); revision++ },
+                    onPrev = { MediaControl.previous(context); revision++ },
+                    onOpenPlayer = {
+                        if (!MediaControl.hasNotificationAccess(context)) {
+                            MediaControl.openNotificationAccessSettings(context)
+                        } else {
+                            AppRepository.launchFirstAvailable(context, AppRepository.MUSIC)
+                        }
+                    },
+                    onBounds = { r -> cardBounds.set(r) },
+                    onEmbedFailed = { embedFailed = true },
+                    onBackToSpeed = {
+                        SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_SPEED)
+                        revision++
+                    },
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                )
+            }
         }
         }
 
