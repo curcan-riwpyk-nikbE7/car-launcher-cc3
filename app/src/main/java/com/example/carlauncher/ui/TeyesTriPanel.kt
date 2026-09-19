@@ -254,8 +254,8 @@ private fun AppGridItem(
     ) {
         if (app != null) {
             AppIcon(
-                icon = app.icon,
-                label = app.label,
+                drawable = app.icon,
+                contentDescription = app.label,
                 modifier = Modifier
                     .size(46.dp)
                     .clip(RoundedCornerShape(12.dp))
