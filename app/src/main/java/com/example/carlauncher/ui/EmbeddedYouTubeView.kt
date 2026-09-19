@@ -39,6 +39,7 @@ import com.example.carlauncher.data.AppRepository
 
 import android.view.View
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
