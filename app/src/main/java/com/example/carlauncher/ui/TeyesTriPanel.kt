@@ -253,9 +253,9 @@ private fun AppGridItem(
         verticalArrangement = Arrangement.Center
     ) {
         if (app != null) {
-            Image(
-                bitmap = app.icon.asImageBitmap(),
-                contentDescription = app.label,
+            AppIcon(
+                icon = app.icon,
+                label = app.label,
                 modifier = Modifier
                     .size(46.dp)
                     .clip(RoundedCornerShape(12.dp))

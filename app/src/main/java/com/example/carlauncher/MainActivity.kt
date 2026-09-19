@@ -32,6 +32,8 @@ import com.example.carlauncher.ui.VoiceOverlay
 import com.example.carlauncher.ui.ScreenDimOverlay
 import com.example.carlauncher.voice.VoiceAssistant
 import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
+import com.example.carlauncher.ui.WidgetPickerDialog
 import com.example.carlauncher.data.AppWidgetHostManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -78,6 +80,18 @@ class MainActivity : ComponentActivity() {
                 SettingsStore.setCardWidgetId(pendingWidgetId)
                 SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
                 pendingWidgetId = -1
+            }
+        } else if (pendingWidgetId > 0) {
+            AppWidgetHostManager.deleteAppWidgetId(pendingWidgetId)
+            pendingWidgetId = -1
+    }
+
+    private val bindWidgetLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            if (pendingWidgetId > 0) {
+                checkWidgetConfigure(pendingWidgetId)
             }
         } else if (pendingWidgetId > 0) {
             AppWidgetHostManager.deleteAppWidgetId(pendingWidgetId)
@@ -170,7 +184,7 @@ class MainActivity : ComponentActivity() {
 
                     if (isCustomWidgetPickerOpen) {
                         WidgetPickerDialog(
-                            onSelectWidget = { info ->
+                            onSelectWidget = { info: AppWidgetProviderInfo ->
                                 isCustomWidgetPickerOpen = false
                                 handleWidgetSelected(info)
                             },

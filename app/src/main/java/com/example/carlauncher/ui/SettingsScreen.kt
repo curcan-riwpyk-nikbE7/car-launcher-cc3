@@ -559,6 +559,9 @@ private fun ThemeMini(s: ThemeSpec) {
         LayoutStyle.TopBar -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             panel(Modifier.fillMaxWidth().height(11.dp)); cards(Modifier.fillMaxWidth().weight(1f))
         }
+        LayoutStyle.TriPanel -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            cards(Modifier.fillMaxWidth().weight(1f))
+        }
     }
 }
 
