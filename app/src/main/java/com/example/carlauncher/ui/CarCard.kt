@@ -284,6 +284,7 @@ fun CarCard(
                 AppWidgetCardView(
                     widgetId = widgetId,
                     onPickWidget = onPickWidget,
+                    onChangeMode = onSpeedLongClick,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -298,6 +299,7 @@ fun CarCard(
             ) {
                 EmbeddedYouTubeView(
                     onOpenFullscreen = onOpenFullscreen,
+                    onChangeMode = onSpeedLongClick,
                     modifier = Modifier.fillMaxSize()
                 )
             }

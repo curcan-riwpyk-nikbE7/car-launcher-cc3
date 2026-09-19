@@ -37,8 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.carlauncher.data.AppRepository
 
+import androidx.compose.material.icons.rounded.Settings
+
 /**
- * Встроенный YouTube плеер внутри правой карточки на базе WebView.
+ * Встроенный YouTube плеер внутри центральной карточки на базе WebView.
  * Позволяет смотреть видео, искать контент и открывать каналы прямо
  * внутри карточки без системных прав и подписей прошивки.
  */
@@ -46,6 +48,7 @@ import com.example.carlauncher.data.AppRepository
 @Composable
 fun EmbeddedYouTubeView(
     onOpenFullscreen: () -> Unit = {},
+    onChangeMode: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -161,6 +164,25 @@ fun EmbeddedYouTubeView(
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )
+            }
+
+            if (onChangeMode != null) {
+                androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.size(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.70f))
+                        .clickable(onClick = onChangeMode),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Settings,
+                        contentDescription = "Режимы карточки",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }

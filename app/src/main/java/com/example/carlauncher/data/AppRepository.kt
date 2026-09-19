@@ -27,7 +27,7 @@ object AppRepository {
 
         return resolved
             .asSequence()
-            .filter { it.activityInfo.packageName != self }
+            .filter { it.activityInfo.packageName != self || it.activityInfo.name.endsWith("ThemeActivity") }
             .map {
                 AppInfo(
                     label = it.loadLabel(pm)?.toString().orEmpty(),
@@ -55,6 +55,14 @@ object AppRepository {
         if (app.packageName == "builtin:settings" || app.activityName == "settings") {
             runCatching {
                 val intent = Intent(context, Class.forName("com.example.carlauncher.SettingsActivity"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            }
+            return
+        }
+        if (app.packageName == "builtin:themes" || app.activityName == "themes" || app.activityName.endsWith("ThemeActivity")) {
+            runCatching {
+                val intent = Intent(context, Class.forName("com.example.carlauncher.ThemeActivity"))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(intent)
             }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -33,10 +34,8 @@ import androidx.compose.ui.unit.sp
 import com.example.carlauncher.data.AppInfo
 
 /**
- * Диалог выбора приложения для плитки (тап по пустой ячейке или долгое нажатие).
- * В самое начало списка добавлены специальные системные функции:
- * - «Все приложения» (меню установленных программ)
- * - «Настройки лаунчера»
+ * Диалог выбора приложения для ячейки (быстрые слоты, спидометр).
+ * Вверху закреплены системные элементы: «Все приложения», «Настройки лаунчера», «Темы CC3».
  */
 @Composable
 fun AppPickerDialog(
@@ -60,6 +59,12 @@ fun AppPickerDialog(
                 label = "Настройки лаунчера",
                 packageName = "builtin:settings",
                 activityName = "settings",
+                icon = null
+            ),
+            AppInfo(
+                label = "Темы CC3",
+                packageName = "builtin:themes",
+                activityName = "themes",
                 icon = null
             )
         )
@@ -107,6 +112,14 @@ fun AppPickerDialog(
                                     "builtin:settings" -> {
                                         Icon(
                                             Icons.Rounded.Settings,
+                                            contentDescription = app.label,
+                                            tint = s.accent,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                    "builtin:themes" -> {
+                                        Icon(
+                                            Icons.Rounded.Palette,
                                             contentDescription = app.label,
                                             tint = s.accent,
                                             modifier = Modifier.size(24.dp)

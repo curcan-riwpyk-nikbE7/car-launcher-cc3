@@ -116,6 +116,20 @@
             android:theme="@style/Theme.CarLauncher"
             tools:ignore="LockedOrientationActivity" />
 
+        <activity
+            android:name=".ThemeActivity"
+            android:exported="true"
+            android:label="Темы CC3"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|density"
+            android:theme="@style/Theme.CarLauncher"
+            tools:ignore="LockedOrientationActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <!-- Пустой listener: даёт доступ к MediaSession для чтения названия трека -->
         <service
             android:name=".data.MediaNotificationListener"

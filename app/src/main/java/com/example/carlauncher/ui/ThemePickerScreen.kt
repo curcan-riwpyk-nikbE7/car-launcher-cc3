@@ -34,6 +34,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import com.example.carlauncher.data.ThemeStore
+
 /**
  * Галерея тем. Каждая карточка — уменьшенный макет главного экрана,
  * нарисованный в цветах и форме своей темы, поэтому сразу видно,
@@ -41,8 +45,9 @@ import androidx.compose.ui.unit.sp
  */
 @Composable
 fun ThemePickerScreen(
-    currentId: String,
-    onPick: (String) -> Unit
+    currentId: String = ThemeStore.current.value,
+    onPick: (String) -> Unit = { ThemeStore.set(it) },
+    onBack: (() -> Unit)? = null
 ) {
     val spec = LocalThemeSpec.current
 
@@ -57,20 +62,48 @@ fun ThemePickerScreen(
                 .systemBarsPadding()
                 .padding(horizontal = 22.dp, vertical = 16.dp)
         ) {
-            Text(
-                text = themedLabel("Оформление"),
-                color = spec.textPrimary,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = spec.fontFamily
-            )
-            Text(
-                text = "Меняется палитра, форма карточек и раскладка панели",
-                color = spec.textSecondary,
-                fontSize = 13.sp,
-                fontFamily = spec.fontFamily,
-                modifier = Modifier.padding(top = 3.dp, bottom = 14.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                if (onBack != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(spec.cardBg)
+                            .border(spec.strokeWidth, spec.cardStroke, CircleShape)
+                            .clickable(onClick = onBack),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = spec.textPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(14.dp))
+                }
+                Column {
+                    Text(
+                        text = themedLabel("Темы оформления CC3"),
+                        color = spec.textPrimary,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = spec.fontFamily
+                    )
+                    Text(
+                        text = "Флагманские стили: меняется палитра, форма карточек, неон и спидометр",
+                        color = spec.textSecondary,
+                        fontSize = 12.sp,
+                        fontFamily = spec.fontFamily,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
 
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),

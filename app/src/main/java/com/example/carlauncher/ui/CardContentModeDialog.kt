@@ -77,7 +77,7 @@ fun CardContentModeDialog(
                 ModeItem(
                     icon = Icons.Rounded.Speed,
                     title = "Спидометр",
-                    subtitle = "Классический спидометр с автомобилем",
+                    subtitle = "Классический спидометр CC3 с автомобилем",
                     selected = currentMode == SettingsStore.CARD_MODE_SPEED,
                     onClick = {
                         onSelectMode(SettingsStore.CARD_MODE_SPEED)
@@ -86,9 +86,20 @@ fun CardContentModeDialog(
                 )
 
                 ModeItem(
+                    icon = Icons.Rounded.PlayCircle,
+                    title = "YouTube (видеоплеер)",
+                    subtitle = "Живой плеер YouTube прямо в карточке с поиском",
+                    selected = currentMode == SettingsStore.CARD_MODE_YOUTUBE,
+                    onClick = {
+                        onSelectMode(SettingsStore.CARD_MODE_YOUTUBE)
+                        onDismiss()
+                    }
+                )
+
+                ModeItem(
                     icon = Icons.Rounded.Map,
                     title = "Живая карта (GPS)",
-                    subtitle = "Векторная карта дорог с текущим положением",
+                    subtitle = "Векторная карта дорог с текущим положением и скоростью",
                     selected = currentMode == SettingsStore.CARD_MODE_MAP,
                     onClick = {
                         onSelectMode(SettingsStore.CARD_MODE_MAP)
@@ -98,26 +109,13 @@ fun CardContentModeDialog(
 
                 ModeItem(
                     icon = Icons.Rounded.Widgets,
-                    title = "Виджет (Яндекс.Музыка)",
-                    subtitle = "Стандартный системный виджет Android",
+                    title = "Виджет Android (Яндекс Музыка, Spotify)",
+                    subtitle = "Интерактивный системный виджет с кнопками плеера",
                     selected = currentMode == SettingsStore.CARD_MODE_WIDGET,
                     onClick = {
                         onSelectMode(SettingsStore.CARD_MODE_WIDGET)
-                        if (SettingsStore.cardWidgetId.value <= 0) {
-                            onPickWidget()
-                        }
                         onDismiss()
-                    }
-                )
-
-                ModeItem(
-                    icon = Icons.Rounded.PlayCircle,
-                    title = "YouTube",
-                    subtitle = "Встроенный видеоплеер в карточке",
-                    selected = currentMode == SettingsStore.CARD_MODE_YOUTUBE,
-                    onClick = {
-                        onSelectMode(SettingsStore.CARD_MODE_YOUTUBE)
-                        onDismiss()
+                        onPickWidget()
                     }
                 )
 
