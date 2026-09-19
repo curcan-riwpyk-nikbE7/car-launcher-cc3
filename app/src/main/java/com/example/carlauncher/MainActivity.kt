@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
         } else if (pendingWidgetId > 0) {
             AppWidgetHostManager.deleteAppWidgetId(pendingWidgetId)
             pendingWidgetId = -1
+        }
     }
 
     private val bindWidgetLauncher = registerForActivityResult(
