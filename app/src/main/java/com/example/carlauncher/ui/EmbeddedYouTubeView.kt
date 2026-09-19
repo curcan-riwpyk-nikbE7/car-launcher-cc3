@@ -37,12 +37,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.carlauncher.data.AppRepository
 
-import androidx.compose.material.icons.rounded.Settings
+import android.view.View
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 /**
  * Встроенный YouTube плеер внутри центральной карточки на базе WebView.
  * Позволяет смотреть видео, искать контент и открывать каналы прямо
  * внутри карточки без системных прав и подписей прошивки.
+ * Поддерживает разворот видео на полный экран магнитолы по кнопке в плеере.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -55,6 +59,8 @@ fun EmbeddedYouTubeView(
     val s = LocalThemeSpec.current
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var canGoBack by remember { mutableStateOf(false) }
+    var fullscreenView by remember { mutableStateOf<View?>(null) }
+    var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
 
     val webView = remember {
         WebView(context).apply {
@@ -74,7 +80,23 @@ fun EmbeddedYouTubeView(
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
 
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                    fullscreenView = view
+                    customViewCallback = callback
+                }
+
+                override fun onHideCustomView() {
+                    customViewCallback?.onCustomViewHidden()
+                    fullscreenView = null
+                    customViewCallback = null
+                }
+
+                override fun getDefaultVideoPoster(): Bitmap? {
+                    return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+                }
+            }
+
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                     super.onPageStarted(view, url, favicon)
@@ -102,7 +124,60 @@ fun EmbeddedYouTubeView(
         webView.onResume()
         onDispose {
             runCatching {
+                customViewCallback?.onCustomViewHidden()
                 webView.onPause()
+            }
+        }
+    }
+
+    // Полноэкранный видеоплеер по нажатию кнопки «на весь экран» внутри YouTube
+    if (fullscreenView != null) {
+        Dialog(
+            onDismissRequest = {
+                customViewCallback?.onCustomViewHidden()
+                fullscreenView = null
+                customViewCallback = null
+            },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                AndroidView(
+                    factory = {
+                        (fullscreenView?.parent as? ViewGroup)?.removeView(fullscreenView)
+                        fullscreenView!!
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Кнопка закрытия / возврата обратно в карточку
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.65f))
+                        .clickable {
+                            customViewCallback?.onCustomViewHidden()
+                            fullscreenView = null
+                            customViewCallback = null
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "Свернуть обратно в карточку",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }

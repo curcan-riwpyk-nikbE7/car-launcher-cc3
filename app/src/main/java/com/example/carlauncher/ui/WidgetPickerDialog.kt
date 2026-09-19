@@ -215,7 +215,7 @@ fun WidgetPickerDialog(
                     contentPadding = PaddingValues(bottom = 8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(filtered, key = { it.info.provider.flattenToString() }) { item ->
+                    items(filtered) { item ->
                         WidgetCardItem(
                             item = item,
                             onClick = {

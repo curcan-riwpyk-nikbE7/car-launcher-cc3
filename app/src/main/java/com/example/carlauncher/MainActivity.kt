@@ -75,14 +75,9 @@ class MainActivity : ComponentActivity() {
     private val configureWidgetLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            if (pendingWidgetId > 0) {
-                SettingsStore.setCardWidgetId(pendingWidgetId)
-                SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
-                pendingWidgetId = -1
-            }
-        } else if (pendingWidgetId > 0) {
-            AppWidgetHostManager.deleteAppWidgetId(pendingWidgetId)
+        if (pendingWidgetId > 0) {
+            SettingsStore.setCardWidgetId(pendingWidgetId)
+            SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
             pendingWidgetId = -1
         }
     }
@@ -108,7 +103,14 @@ class MainActivity : ComponentActivity() {
                 component = info.configure
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
             }
-            configureWidgetLauncher.launch(intent)
+            try {
+                configureWidgetLauncher.launch(intent)
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Configure activity failed or not exported: ${e.message}")
+                SettingsStore.setCardWidgetId(widgetId)
+                SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
+                pendingWidgetId = -1
+            }
         } else {
             SettingsStore.setCardWidgetId(widgetId)
             SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
@@ -118,29 +120,54 @@ class MainActivity : ComponentActivity() {
     private var isCustomWidgetPickerOpen by mutableStateOf(false)
 
     private fun handleWidgetSelected(info: AppWidgetProviderInfo) {
-        val widgetId = AppWidgetHostManager.allocateAppWidgetId()
-        if (widgetId <= 0) return
-        val wm = AppWidgetManager.getInstance(this)
-        val success = wm.bindAppWidgetIdIfAllowed(widgetId, info.provider)
-        if (success) {
-            if (info.configure != null) {
-                pendingWidgetId = widgetId
-                val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                    component = info.configure
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+        runCatching {
+            val widgetId = AppWidgetHostManager.allocateAppWidgetId()
+            if (widgetId <= 0) return
+            val wm = AppWidgetManager.getInstance(this)
+
+            var success = false
+            try {
+                success = wm.bindAppWidgetIdIfAllowed(widgetId, info.provider)
+            } catch (e: Exception) {
+                Log.w("MainActivity", "bindAppWidgetIdIfAllowed error: ${e.message}")
+            }
+
+            if (!success) {
+                // Пробуем предоставить BIND_APPWIDGET через shell/root на китайском ГУ
+                runCatching {
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "appops set $packageName BIND_APPWIDGET allow")).waitFor()
+                    Runtime.getRuntime().exec(arrayOf("su", "-c", "appops set $packageName BIND_APPWIDGET allow")).waitFor()
                 }
-                configureWidgetLauncher.launch(intent)
+                try {
+                    success = wm.bindAppWidgetIdIfAllowed(widgetId, info.provider)
+                } catch (e: Exception) { }
+            }
+
+            if (success) {
+                checkWidgetConfigure(widgetId)
             } else {
-                SettingsStore.setCardWidgetId(widgetId)
-                SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_WIDGET)
+                pendingWidgetId = widgetId
+                val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
+                }
+                try {
+                    bindWidgetLauncher.launch(intent)
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "ACTION_APPWIDGET_BIND not available on this ROM", e)
+                    Toast.makeText(
+                        this,
+                        "Магнитола заблокировала виджет (прошивка запретила привязку)",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    AppWidgetHostManager.deleteAppWidgetId(widgetId)
+                    pendingWidgetId = -1
+                }
             }
-        } else {
-            pendingWidgetId = widgetId
-            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
-            }
-            bindWidgetLauncher.launch(intent)
+        }.onFailure { err ->
+            Log.e("MainActivity", "handleWidgetSelected failed: ${err.message}", err)
+            Toast.makeText(this, "Не удалось добавить виджет: ${err.message}", Toast.LENGTH_SHORT).show()
+            pendingWidgetId = -1
         }
     }
 
