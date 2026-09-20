@@ -268,9 +268,9 @@ private class EmbeddedSession(
             context.startActivity(intent, opts.toBundle())
             Log.i(TAG, "startActivity($packageName) отправлен на display=$displayId")
         } catch (e: Throwable) {
-            Log.w(TAG, "startActivity не прошел, пробуем резервный am start: ${e.message}")
-            runShellLaunch(displayId, intent)
+            Log.w(TAG, "startActivity: ${e.message}")
         }
+        runShellLaunch(displayId, intent)
     }
 
     private fun runShellLaunch(displayId: Int, intent: Intent) {
@@ -283,7 +283,9 @@ private class EmbeddedSession(
                 } else {
                     "am start --display $displayId ${wmFlag}-f 0x10000000 -p $packageName"
                 }
-                Runtime.getRuntime().exec(arrayOf("sh", "-c", cmd)).waitFor()
+                val proc = runCatching { Runtime.getRuntime().exec(arrayOf("su", "-c", cmd)) }.getOrNull()
+                    ?: Runtime.getRuntime().exec(arrayOf("sh", "-c", cmd))
+                proc.waitFor()
                 Log.i(TAG, "am start выполнен для $packageName на display=$displayId")
             }
         }

@@ -162,6 +162,13 @@ fun HomeScreen(
         }
     }
 
+    // Приложение, назначенное на окно навигации
+    val navApp = remember(revision, apps) {
+        store.get(ShortcutStore.SLOT_NAV)?.let { pkg ->
+            apps.firstOrNull { it.packageName == pkg }
+        }
+    }
+
     var playerExpanded by remember { mutableStateOf(false) }
     var radioExpanded by remember { mutableStateOf(false) }
     var carExpanded by remember { mutableStateOf(false) }
@@ -434,11 +441,11 @@ fun HomeScreen(
                     contentMode = SettingsStore.cardContentMode.value,
                     widgetId = SettingsStore.cardWidgetId.value,
                     onPickWidget = onPickWidget,
-                    embeddedPackage = null,
+                    embeddedPackage = navApp?.packageName,
                     onEmbedFailed = { embedFailed = true },
                     onBackToSpeed = {
-                        FreeformLauncher.closeActiveWindow(context)
                         SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_SPEED)
+                        SettingsStore.setSpeedCardEmbedded(false)
                         revision++
                     },
                     onOpenFullscreen = {

@@ -295,25 +295,13 @@ fun CarCard(
             }
             val pkgToEmbed = embeddedPackage ?: navPkg
 
-            // Автоматический запуск окна точно в границах карточки при получении геометрии
-            LaunchedEffect(pkgToEmbed, currentCardBounds.width(), currentCardBounds.height()) {
-                if (currentCardBounds.width() > 100 && currentCardBounds.height() > 100) {
-                    FreeformLauncher.launchInBounds(context, pkgToEmbed, currentCardBounds)
-                }
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
                     .background(s.carCardBg)
-                    .clickable {
-                        if (currentCardBounds.width() > 100 && currentCardBounds.height() > 100) {
-                            FreeformLauncher.launchInBounds(context, pkgToEmbed, currentCardBounds)
-                        }
-                    }
             ) {
-                // Фоновая подложка (видна пока окно загружается или если окно закрыли крестиком)
+                // Фоновая подложка (видна пока окно инициализируется)
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -336,12 +324,19 @@ fun CarCard(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Нажмите, чтобы открыть карту в окне",
+                        text = "Запуск карты в карточке...",
                         color = Color.White.copy(alpha = 0.65f),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center
                     )
                 }
+
+                // Бесшовное встраивание приложения прямо в карточку (DriveDeck)
+                EmbeddedAppView(
+                    packageName = pkgToEmbed,
+                    modifier = Modifier.fillMaxSize(),
+                    onFailed = onEmbedFailed
+                )
 
                 // Кнопки быстрого управления карточкой в правом верхнем углу
                 Row(
@@ -401,26 +396,15 @@ fun CarCard(
                 "org.videolan.vlc",
                 "com.mxtech.videoplayer.ad"
             )
-            val ytPkg = AppRepository.findFirstInstalled(context, ytCandidates, AppRepository.VIDEO_LABELS)
+            val ytPkg = speedApp?.packageName
+                ?: AppRepository.findFirstInstalled(context, ytCandidates, AppRepository.VIDEO_LABELS)
                 ?: "com.google.android.youtube"
-
-            // Автоматический запуск окна YouTube в границах карточки
-            LaunchedEffect(ytPkg, currentCardBounds.width(), currentCardBounds.height()) {
-                if (currentCardBounds.width() > 100 && currentCardBounds.height() > 100) {
-                    FreeformLauncher.launchInBounds(context, ytPkg, currentCardBounds)
-                }
-            }
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
                     .background(s.carCardBg)
-                    .clickable {
-                        if (currentCardBounds.width() > 100 && currentCardBounds.height() > 100) {
-                            FreeformLauncher.launchInBounds(context, ytPkg, currentCardBounds)
-                        }
-                    }
             ) {
                 Column(
                     modifier = Modifier
@@ -444,12 +428,19 @@ fun CarCard(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Нажмите, чтобы открыть видео в окне",
+                        text = "Запуск видео в карточке...",
                         color = Color.White.copy(alpha = 0.65f),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center
                     )
                 }
+
+                // Бесшовное встраивание YouTube прямо в карточку (DriveDeck)
+                EmbeddedAppView(
+                    packageName = ytPkg,
+                    modifier = Modifier.fillMaxSize(),
+                    onFailed = onEmbedFailed
+                )
 
                 Row(
                     modifier = Modifier

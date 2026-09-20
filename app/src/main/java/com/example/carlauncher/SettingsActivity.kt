@@ -130,7 +130,16 @@ class SettingsActivity : ComponentActivity() {
                         SettingsStore.resetAll(this@SettingsActivity)
                         revision++
                     },
-                    onBack = { finish() }
+                    onBack = { finish() },
+                    apps = apps,
+                    onAssignApp = { slot, pkg ->
+                        store.set(slot, pkg)
+                        revision++
+                    },
+                    onClearSlot = { slot ->
+                        store.clear(slot)
+                        revision++
+                    }
                 )
 
                 // Настройки автомобиля отдельным экраном: кнопки руля,

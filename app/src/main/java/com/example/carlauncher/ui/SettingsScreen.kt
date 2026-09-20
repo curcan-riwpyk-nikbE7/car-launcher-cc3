@@ -6,9 +6,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateDpAsState
 import com.example.carlauncher.data.BtMusicStarter
 import com.example.carlauncher.data.SettingsStore
+import com.example.carlauncher.data.ShortcutStore
+import com.example.carlauncher.data.AppRepository
 import com.example.carlauncher.data.UpdateChecker
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.OpenInFull
@@ -109,6 +112,7 @@ data class ShortcutRow(
 
 /** Разделы настроек — вкладки-пилюли сверху, как на магнитоле. */
 private enum class SettingsTab(val title: String, val icon: ImageVector) {
+    HomeScreen("Главный экран", Icons.Rounded.Home),
     Appearance("Оформление", Icons.Rounded.Palette),
     Network("Сеть", Icons.Rounded.Wifi),
     Voice("Голос", Icons.Rounded.Mic),
@@ -160,10 +164,13 @@ fun SettingsScreen(
     hasNotificationAccess: Boolean,
     onNotificationAccess: () -> Unit,
     onReset: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    apps: List<AppInfo> = emptyList(),
+    onAssignApp: (slot: String, pkg: String) -> Unit = { _, _ -> },
+    onClearSlot: (slot: String) -> Unit = {}
 ) {
     val s = LocalThemeSpec.current
-    var tab by remember { mutableStateOf(SettingsTab.Appearance) }
+    var tab by remember { mutableStateOf(SettingsTab.HomeScreen) }
 
     Box(
         modifier = Modifier
@@ -220,6 +227,7 @@ fun SettingsScreen(
 
             Box(modifier = Modifier.fillMaxSize().padding(top = 14.dp)) {
                 when (tab) {
+                    SettingsTab.HomeScreen -> HomeScreenTab(apps, onAssignApp, onClearSlot)
                     SettingsTab.Appearance -> AppearanceTab(themeId, onThemePick)
                     SettingsTab.Network -> NetworkTab()
                     SettingsTab.Voice -> VoiceTab()
@@ -393,6 +401,346 @@ internal fun SettingTile(
         }
         if (trailing != null) {
             Box(modifier = Modifier.padding(top = 10.dp)) { trailing() }
+        }
+    }
+}
+
+// ────────────────────────── Вкладка «Главный экран» ──────────────────────────
+
+@Composable
+private fun HomeScreenTab(
+    apps: List<AppInfo>,
+    onAssignApp: (slot: String, pkg: String) -> Unit,
+    onClearSlot: (slot: String) -> Unit
+) {
+    val context = LocalContext.current
+    val s = LocalThemeSpec.current
+    val store = remember { ShortcutStore(context) }
+    var selectedAppForAssign by remember { mutableStateOf<AppInfo?>(null) }
+
+    val navPkg = store.get(ShortcutStore.SLOT_NAV)
+    val navApp = remember(navPkg, apps) {
+        apps.firstOrNull { it.packageName == navPkg }
+    }
+
+    val speedPkg = store.get(ShortcutStore.SLOT_SPEED)
+    val speedApp = remember(speedPkg, apps) {
+        apps.firstOrNull { it.packageName == speedPkg }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Text(
+                text = "‹ Главный экран",
+                color = s.accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = s.fontFamily
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Приложение главного экрана",
+                color = s.textPrimary,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = s.fontFamily
+            )
+        }
+
+        // Карточка 1: Открывать в виртуальном окне (Окно навигации слева)
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(s.cardBg)
+                    .border(s.strokeWidth, s.cardStroke.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                    .padding(18.dp)
+            ) {
+                Text(
+                    text = "Открывать в виртуальном окне (Окно карты)",
+                    color = s.textPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = s.fontFamily
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (navApp != null) {
+                        AppIcon(navApp.icon, navApp.label, Modifier.size(36.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = navApp.label,
+                                color = s.accent,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = s.fontFamily
+                            )
+                            Text(
+                                text = "Выбор сохраняется для левой карточки главного экрана.",
+                                color = s.textSecondary,
+                                fontSize = 12.sp,
+                                fontFamily = s.fontFamily
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(alpha = 0.1f))
+                                .clickable { onClearSlot(ShortcutStore.SLOT_NAV) }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text("Сбросить", color = s.textPrimary, fontSize = 12.sp, fontFamily = s.fontFamily)
+                        }
+                    } else {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Приложение не выбрано (по умолчанию: Яндекс.Карты)",
+                                color = s.textSecondary,
+                                fontSize = 14.sp,
+                                fontFamily = s.fontFamily
+                            )
+                            Text(
+                                text = "Выбор сохраняется для главного экрана.",
+                                color = s.textDim,
+                                fontSize = 11.sp,
+                                fontFamily = s.fontFamily
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Карточка 2: Виртуальное окно медиа (Окно YouTube / Музыки справа)
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(s.cardBg)
+                    .border(s.strokeWidth, s.cardStroke.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                    .padding(18.dp)
+            ) {
+                Text(
+                    text = "Окно медиа / видео (Правая карточка)",
+                    color = s.textPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = s.fontFamily
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (speedApp != null) {
+                        AppIcon(speedApp.icon, speedApp.label, Modifier.size(36.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = speedApp.label,
+                                color = s.accent,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = s.fontFamily
+                            )
+                            Text(
+                                text = "Отображается в правой карточке лаунчера.",
+                                color = s.textSecondary,
+                                fontSize = 12.sp,
+                                fontFamily = s.fontFamily
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(alpha = 0.1f))
+                                .clickable { onClearSlot(ShortcutStore.SLOT_SPEED) }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text("Сбросить", color = s.textPrimary, fontSize = 12.sp, fontFamily = s.fontFamily)
+                        }
+                    } else {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "По умолчанию: Спидометр авто",
+                                color = s.textSecondary,
+                                fontSize = 14.sp,
+                                fontFamily = s.fontFamily
+                            )
+                            Text(
+                                text = "Выберите YouTube или плеер ниже для встраивания.",
+                                color = s.textDim,
+                                fontSize = 11.sp,
+                                fontFamily = s.fontFamily
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Карточка 3: Каталог приложений (как на скриншоте пользователя)
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(s.cardBg)
+                    .border(s.strokeWidth, s.cardStroke.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                    .padding(18.dp)
+            ) {
+                Text(
+                    text = "Каталог приложений",
+                    color = s.textPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = s.fontFamily
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Нажмите на приложение, чтобы назначить его в виртуальное окно",
+                    color = s.textSecondary,
+                    fontSize = 12.sp,
+                    fontFamily = s.fontFamily
+                )
+                Spacer(Modifier.height(14.dp))
+
+                val displayApps = apps.ifEmpty { AppRepository.loadApps(context) }
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(displayApps, key = { it.packageName + "/" + it.activityName }) { app ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .width(88.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { selectedAppForAssign = app }
+                                .padding(vertical = 8.dp, horizontal = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color.White.copy(alpha = 0.07f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AppIcon(app.icon, app.label, Modifier.size(42.dp))
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = app.label,
+                                color = s.textPrimary,
+                                fontSize = 12.sp,
+                                fontFamily = s.fontFamily,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Диалог назначения выбранного приложения
+    selectedAppForAssign?.let { targetApp ->
+        androidx.compose.ui.window.Dialog(onDismissRequest = { selectedAppForAssign = null }) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(s.cardBg)
+                    .border(s.strokeWidth, s.cardStroke, RoundedCornerShape(20.dp))
+                    .padding(24.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    AppIcon(targetApp.icon, targetApp.label, Modifier.size(52.dp))
+                    Text(
+                        text = "Назначить «${targetApp.label}»",
+                        color = s.textPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = s.fontFamily,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Выберите, в какое виртуальное окно открыть это приложение:",
+                        color = s.textSecondary,
+                        fontSize = 13.sp,
+                        fontFamily = s.fontFamily,
+                        textAlign = TextAlign.Center
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(s.accent)
+                                .clickable {
+                                    onAssignApp(ShortcutStore.SLOT_NAV, targetApp.packageName)
+                                    SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_MAP)
+                                    SettingsStore.setSpeedCardEmbedded(true)
+                                    selectedAppForAssign = null
+                                }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Окно карты (слева)",
+                                color = Color.Black,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = s.fontFamily
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.12f))
+                                .clickable {
+                                    onAssignApp(ShortcutStore.SLOT_SPEED, targetApp.packageName)
+                                    SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_YOUTUBE)
+                                    selectedAppForAssign = null
+                                }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Окно медиа (справа)",
+                                color = s.textPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = s.fontFamily
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Отмена",
+                        color = s.textDim,
+                        fontSize = 13.sp,
+                        fontFamily = s.fontFamily,
+                        modifier = Modifier
+                            .clickable { selectedAppForAssign = null }
+                            .padding(8.dp)
+                    )
+                }
+            }
         }
     }
 }
