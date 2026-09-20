@@ -74,9 +74,7 @@ fun NaviQuickOverlay(
     if (!isNavi || navigatorPkg == null) return
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         QuickNavButton(
