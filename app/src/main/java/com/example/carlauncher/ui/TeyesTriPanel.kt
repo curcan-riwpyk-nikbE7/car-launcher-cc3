@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.carlauncher.data.AppInfo
 import com.example.carlauncher.data.AppRepository
+import com.example.carlauncher.data.TaskMover
 import com.example.carlauncher.data.NowPlaying
 import com.example.carlauncher.data.SettingsStore
 
@@ -128,15 +129,28 @@ fun TeyesTriPanel(
                 onBackToSpeed = onBackToSpeed,
                 onOpenFullscreen = {
                     when (SettingsStore.cardContentMode.value) {
-                        SettingsStore.CARD_MODE_MAP -> {
-                            AppRepository.launchFirstAvailable(context, AppRepository.NAVIGATION)
+                        SettingsStore.CARD_MODE_MAP, SettingsStore.CARD_MODE_EMBEDDED -> {
+                            val navPkg = if (speedApp != null && AppRepository.NAVIGATION.contains(speedApp.packageName)) {
+                                speedApp.packageName
+                            } else {
+                                AppRepository.findFirstInstalled(context, AppRepository.NAVIGATION)
+                                    ?: speedApp?.packageName
+                                    ?: "ru.yandex.yandexmaps"
+                            }
+                            if (!TaskMover.moveToMainDisplay(context, navPkg)) {
+                                AppRepository.launchPackage(context, navPkg)
+                            }
                         }
                         SettingsStore.CARD_MODE_YOUTUBE -> {
                             AppRepository.launchFirstAvailable(context, AppRepository.VIDEO)
                         }
                         else -> {
                             val a = speedApp
-                            if (a != null) AppRepository.launch(context, a)
+                            if (a != null) {
+                                AppRepository.launch(context, a)
+                            } else {
+                                AppRepository.launchFirstAvailable(context, AppRepository.NAVIGATION)
+                            }
                         }
                     }
                 },
