@@ -223,10 +223,13 @@ private class EmbeddedSession(
     }
 
     private fun launchAppOnDisplay(displayId: Int) {
-        val intent = AppIntents.bestIntent(context, packageName)
-            ?: context.packageManager.getLaunchIntentForPackage(packageName)
+        // Для VirtualDisplay обязательно используем прямой Launch Intent главного экрана (MainActivity),
+        // чтобы избежать Trampoline/Router-активностей deep link схем, которые немедленно закрываются
+        // и сбрасывают запуск на экран по умолчанию!
+        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
+            ?: AppIntents.bestIntent(context, packageName)
             ?: return
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
 
         // Разрешаем явный компонент, если он не был задан (нужно для shell am start)
         if (intent.component == null) {
