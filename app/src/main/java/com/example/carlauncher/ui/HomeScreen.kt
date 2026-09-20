@@ -936,6 +936,7 @@ fun HomeScreen(
                         )
                         AppRepository.findFirstInstalled(context, ytCandidates, AppRepository.VIDEO_LABELS)
                             ?: "com.google.android.youtube"
+                    }
                     FreeformLauncher.closeActiveWindow(context)
                 } else if (mode == SettingsStore.CARD_MODE_SPEED) {
                     FreeformLauncher.closeActiveWindow(context)
@@ -958,15 +959,9 @@ fun HomeScreen(
                 store.set(slot, app.packageName)
                 revision++
                 pickerSlot = null
-                // Сразу показываем результат: карту открываем плавающим
-                // окном по границам карточки (на главном дисплее, где
-                // приложение гарантированно рисует). Встроенный режим
-                // не включаем — на прошивках CC3 он даёт чёрный экран.
-                // Если ГУ не умеет окна — launchFreeform сам откроет
-                // приложение на весь экран и предупредит.
                 if (slot == ShortcutStore.SLOT_SPEED) {
                     embedFailed = false
-                    launchFreeform(app.packageName)
+                    SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_MAP)
                 }
             },
             onReset = { store.clear(slot); revision++; pickerSlot = null },
