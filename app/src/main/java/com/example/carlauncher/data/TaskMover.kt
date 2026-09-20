@@ -58,11 +58,7 @@ object TaskMover {
             return true
         }
 
-        // Android не держит одну задачу на двух дисплеях сразу. Если
-        // приложение уже висит на основном экране, перенос молча
-        // провалится — поэтому сначала убираем лишнее.
-        removeTasksOnOtherDisplays(context, packageName, displayId)
-
+        // Переносим существующую задачу приложения на виртуальный дисплей
         var moved = moveRootTaskToDisplay(taskId, displayId)
         if (!moved) moved = moveTaskToDisplayLegacy(context, taskId, displayId)
 
@@ -83,7 +79,8 @@ object TaskMover {
             // getRunningTasks: он ограничен, но с REAL_GET_TASKS отдаёт всё.
             @Suppress("DEPRECATION")
             am.getRunningTasks(50).firstOrNull {
-                it.baseActivity?.packageName == packageName
+                it.baseActivity?.packageName == packageName ||
+                it.topActivity?.packageName == packageName
             }
         }.getOrNull()
 
