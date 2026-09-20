@@ -42,7 +42,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.font.FontWeight
 import com.example.carlauncher.data.AppIntents
+import com.example.carlauncher.data.SettingsStore
 import com.example.carlauncher.data.SystemPrivileges
 import com.example.carlauncher.data.TaskMover
 import kotlinx.coroutines.CoroutineScope
@@ -216,8 +223,24 @@ private class EmbeddedSession(
     }
 
     private fun launchAppOnDisplay(displayId: Int) {
-        val intent = AppIntents.bestIntent(context, packageName) ?: return
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+        val intent = AppIntents.bestIntent(context, packageName)
+            ?: context.packageManager.getLaunchIntentForPackage(packageName)
+            ?: return
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        // Разрешаем явный компонент, если он не был задан (нужно для shell am start)
+        if (intent.component == null) {
+            val resolved = runCatching {
+                context.packageManager.resolveActivity(intent, 0)?.activityInfo
+            }.getOrNull() ?: runCatching {
+                context.packageManager.getLaunchIntentForPackage(packageName)?.component?.let {
+                    context.packageManager.resolveActivity(Intent().setComponent(it), 0)?.activityInfo
+                }
+            }.getOrNull()
+            if (resolved != null) {
+                intent.component = android.content.ComponentName(resolved.packageName, resolved.name)
+            }
+        }
 
         val opts = ActivityOptions.makeBasic().apply {
             setLaunchDisplayId(displayId)
@@ -242,10 +265,14 @@ private class EmbeddedSession(
     private fun runShellLaunch(displayId: Int, intent: Intent) {
         CoroutineScope(Dispatchers.IO).launch {
             runCatching {
-                val comp = intent.component?.flattenToShortString() ?: packageName
-                val cmd = "am start --display $displayId --windowingMode 1 -f 0x10000000 -n $comp"
+                val comp = intent.component?.flattenToShortString()
+                val cmd = if (!comp.isNullOrBlank()) {
+                    "am start --display $displayId --windowingMode 1 -f 0x10000000 -n $comp"
+                } else {
+                    "am start --display $displayId --windowingMode 1 -f 0x10000000 -p $packageName"
+                }
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", cmd)).waitFor()
-                Log.i(TAG, "am start выполнен для $comp на display=$displayId")
+                Log.i(TAG, "am start выполнен для $packageName на display=$displayId")
             }
         }
     }
@@ -378,6 +405,39 @@ private fun FallbackNotice(onFailed: () -> Unit, hadPermission: Boolean) {
             fontFamily = s.fontFamily,
             modifier = Modifier.padding(top = 8.dp)
         )
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(s.accent.copy(alpha = 0.15f))
+                    .clickable { SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_MAP) }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "Живая карта (GPS)",
+                    color = s.accent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = s.fontFamily
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.08f))
+                    .clickable { SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_SPEED) }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "Спидометр",
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = s.fontFamily
+                )
+            }
+        }
     }
     androidx.compose.runtime.LaunchedEffect(Unit) { onFailed() }
 }
