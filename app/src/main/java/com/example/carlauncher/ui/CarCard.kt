@@ -330,59 +330,49 @@ fun CarCard(
                     onFailed = onEmbedFailed
                 )
 
-                // Верхняя панель управления: быстрые точки слева, спидометр и разворот справа
+                // Маленькие полупрозрачные кнопки управления окном в правом верхнем углу (не перекрывают маневры и Алису)
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopStart)
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    NaviQuickOverlay(
-                        navigatorPkg = pkgToEmbed
-                    )
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Возврат к классическому спидометру
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .combinedClickable(
+                                onClick = onBackToSpeed,
+                                onLongClick = onSpeedLongClick
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Возврат к классическому спидометру
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.65f))
-                                .combinedClickable(
-                                    onClick = onBackToSpeed,
-                                    onLongClick = onSpeedLongClick
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Speed,
-                                contentDescription = "Спидометр",
-                                tint = Color.White.copy(alpha = 0.9f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Speed,
+                            contentDescription = "Спидометр",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
 
-                        // Развернуть на полный экран
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.65f))
-                                .clickable { onOpenFullscreen() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.OpenInFull,
-                                contentDescription = "На весь экран",
-                                tint = Color.White.copy(alpha = 0.9f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                    // Развернуть на полный экран
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .clickable { onOpenFullscreen() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.OpenInFull,
+                            contentDescription = "На весь экран",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
