@@ -103,7 +103,7 @@ fun EmbeddedAppView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
                 TextureView(ctx).apply {
-                    isOpaque = false
+                    isOpaque = true
                     surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                         override fun onSurfaceTextureAvailable(
                             st: SurfaceTexture,
@@ -196,14 +196,23 @@ private class EmbeddedSession(
             }
 
             val vdName = "CarLauncherEmbed-${packageName.hashCode()}"
-            val vd = dm.createVirtualDisplay(
-                vdName,
-                safeW,
-                safeH,
-                densityDpi,
-                s,
-                flags
-            ) ?: return false
+            var vd: VirtualDisplay? = null
+            try {
+                vd = dm.createVirtualDisplay(
+                    vdName,
+                    safeW,
+                    safeH,
+                    densityDpi,
+                    s,
+                    flags
+                )
+            } catch (se: SecurityException) {
+                Log.w(TAG, "PUBLIC flags отклонены системой ($se), пробуем PRESENTATION / private")
+                vd = runCatching {
+                    dm.createVirtualDisplay(vdName, safeW, safeH, densityDpi, s, DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION)
+                }.getOrNull() ?: dm.createVirtualDisplay(vdName, safeW, safeH, densityDpi, s, 0)
+            }
+            if (vd == null) return false
 
             display = vd
             val displayId = vd.display.displayId
@@ -226,9 +235,8 @@ private class EmbeddedSession(
         // Для VirtualDisplay обязательно используем прямой Launch Intent главного экрана (MainActivity),
         // чтобы избежать Trampoline/Router-активностей deep link схем, которые немедленно закрываются
         // и сбрасывают запуск на экран по умолчанию!
-        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-            ?: AppIntents.bestIntent(context, packageName)
-            ?: return
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+        val intent = launchIntent ?: AppIntents.bestIntent(context, packageName) ?: return
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
 
         // Разрешаем явный компонент, если он не был задан (нужно для shell am start)
@@ -236,7 +244,7 @@ private class EmbeddedSession(
             val resolved = runCatching {
                 context.packageManager.resolveActivity(intent, 0)?.activityInfo
             }.getOrNull() ?: runCatching {
-                context.packageManager.getLaunchIntentForPackage(packageName)?.component?.let {
+                launchIntent?.component?.let {
                     context.packageManager.resolveActivity(Intent().setComponent(it), 0)?.activityInfo
                 }
             }.getOrNull()
@@ -269,10 +277,11 @@ private class EmbeddedSession(
         CoroutineScope(Dispatchers.IO).launch {
             runCatching {
                 val comp = intent.component?.flattenToShortString()
+                val wmFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "--windowingMode 1 " else ""
                 val cmd = if (!comp.isNullOrBlank()) {
-                    "am start --display $displayId --windowingMode 1 -f 0x10000000 -n $comp"
+                    "am start --display $displayId ${wmFlag}-f 0x10000000 -n $comp"
                 } else {
-                    "am start --display $displayId --windowingMode 1 -f 0x10000000 -p $packageName"
+                    "am start --display $displayId ${wmFlag}-f 0x10000000 -p $packageName"
                 }
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", cmd)).waitFor()
                 Log.i(TAG, "am start выполнен для $packageName на display=$displayId")

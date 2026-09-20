@@ -261,35 +261,85 @@ fun CarCard(
             )
         }
 
-        if (contentMode == SettingsStore.CARD_MODE_MAP) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(s.cardCorner))
-            ) {
-                EmbeddedMapView(
-                    speedKmh = speedKmh,
-                    onOpenFullNavi = onOpenFullscreen,
-                    onBackToSpeed = onBackToSpeed,
-                    onPickMode = onSpeedLongClick,
-                    modifier = Modifier.fillMaxSize()
-                )
+        if (contentMode == SettingsStore.CARD_MODE_MAP ||
+            contentMode == SettingsStore.CARD_MODE_EMBEDDED ||
+            embeddedPackage != null
+        ) {
+            val navCandidates = listOf(
+                "ru.yandex.yandexnavi",
+                "ru.yandex.yandexmaps",
+                "ru.dublgis.dgismobile",
+                "com.google.android.apps.maps",
+                "com.waze",
+                "cityguide.probki.net",
+                "com.navitel",
+                "com.sygic.aura"
+            )
+            val navLabels = listOf("Навигатор", "Карты", "Яндекс Карты", "Яндекс Навигатор", "2ГИС", "Maps", "Navigation", "Navi")
+            val navPkg = if (speedApp != null && AppRepository.NAVIGATION.contains(speedApp.packageName)) {
+                speedApp.packageName
+            } else {
+                AppRepository.findFirstInstalled(context, navCandidates, navLabels)
+                    ?: speedApp?.packageName
+                    ?: "ru.yandex.yandexnavi"
             }
-            return@Box
-        }
-
-        if (contentMode == SettingsStore.CARD_MODE_WIDGET) {
+            val pkgToEmbed = embeddedPackage ?: navPkg
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
             ) {
-                AppWidgetCardView(
-                    widgetId = widgetId,
-                    onPickWidget = onPickWidget,
-                    onChangeMode = onSpeedLongClick,
-                    modifier = Modifier.fillMaxSize()
+                EmbeddedAppView(
+                    packageName = pkgToEmbed,
+                    modifier = Modifier.fillMaxSize(),
+                    onFailed = onEmbedFailed
                 )
+
+                // Маленькие полупрозрачные кнопки управления окном в правом верхнем углу (не перекрывают маневры и Алису)
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Возврат к классическому спидометру
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .combinedClickable(
+                                onClick = onBackToSpeed,
+                                onLongClick = onSpeedLongClick
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Speed,
+                            contentDescription = "Спидометр",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    // Развернуть на полный экран
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .clickable { onOpenFullscreen() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.OpenInFull,
+                            contentDescription = "На весь экран",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
             return@Box
         }
@@ -363,75 +413,6 @@ fun CarCard(
             return@Box
         }
 
-        // Приложение занимает карточку целиком на весь экран без рамок и лишних полос
-        if (contentMode == SettingsStore.CARD_MODE_EMBEDDED || embeddedPackage != null) {
-            val navPkg = if (speedApp != null && AppRepository.NAVIGATION.contains(speedApp.packageName)) {
-                speedApp.packageName
-            } else {
-                AppRepository.findFirstInstalled(context, AppRepository.NAVIGATION)
-                    ?: speedApp?.packageName
-                    ?: "ru.yandex.yandexmaps"
-            }
-            val pkgToEmbed = embeddedPackage ?: navPkg
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(s.cardCorner))
-            ) {
-                EmbeddedAppView(
-                    packageName = pkgToEmbed,
-                    modifier = Modifier.fillMaxSize(),
-                    onFailed = onEmbedFailed
-                )
-
-                // Маленькие полупрозрачные кнопки управления окном в правом верхнем углу (не перекрывают маневры и Алису)
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Возврат к классическому спидометру
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .combinedClickable(
-                                onClick = onBackToSpeed,
-                                onLongClick = onSpeedLongClick
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Speed,
-                            contentDescription = "Спидометр",
-                            tint = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    // Развернуть на полный экран
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .clickable { onOpenFullscreen() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.OpenInFull,
-                            contentDescription = "На весь экран",
-                            tint = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-            return@Box
-        }
 
         Row(modifier = Modifier.fillMaxSize().padding(dimens().screenPadding + 4.dp)) {
             Column(

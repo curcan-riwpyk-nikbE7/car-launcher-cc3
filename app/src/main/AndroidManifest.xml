@@ -24,6 +24,27 @@
     -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!-- Системные права для встраивания чужих окон (Яндекс Навигатор, YouTube) в карточку -->
+    <uses-permission android:name="android.permission.ACTIVITY_EMBEDDING"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.ADD_TRUSTED_DISPLAY"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.CAPTURE_VIDEO_OUTPUT"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.INTERNAL_SYSTEM_WINDOW"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.INJECT_EVENTS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.START_ANY_ACTIVITY"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.MANAGE_ACTIVITY_STACKS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.MANAGE_ACTIVITY_TASKS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.REAL_GET_TASKS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
     <!-- Ползунок яркости. Выдаётся вручную на системном экране, не диалогом -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
         tools:ignore="ProtectedPermissions" />

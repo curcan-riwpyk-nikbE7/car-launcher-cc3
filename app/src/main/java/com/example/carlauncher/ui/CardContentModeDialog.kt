@@ -86,6 +86,17 @@ fun CardContentModeDialog(
                 )
 
                 ModeItem(
+                    icon = Icons.Rounded.Map,
+                    title = "Карта",
+                    subtitle = "Навигация (Яндекс Навигатор, Яндекс Карты, 2ГИС)",
+                    selected = currentMode == SettingsStore.CARD_MODE_MAP || currentMode == SettingsStore.CARD_MODE_EMBEDDED,
+                    onClick = {
+                        onSelectMode(SettingsStore.CARD_MODE_MAP)
+                        onDismiss()
+                    }
+                )
+
+                ModeItem(
                     icon = Icons.Rounded.PlayCircle,
                     title = "YouTube",
                     subtitle = "Нативное приложение YouTube прямо в карточке",
@@ -95,86 +106,52 @@ fun CardContentModeDialog(
                         onDismiss()
                     }
                 )
+            }
 
-                ModeItem(
-                    icon = Icons.Rounded.Map,
-                    title = "Живая карта (GPS)",
-                    subtitle = "Векторная карта дорог с текущим положением и скоростью",
-                    selected = currentMode == SettingsStore.CARD_MODE_MAP,
-                    onClick = {
-                        onSelectMode(SettingsStore.CARD_MODE_MAP)
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Дополнительный пункт — настроить приложение для быстрого клика
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .clickable {
                         onDismiss()
+                        onPickAppForSpeed()
                     }
-                )
-
-                ModeItem(
-                    icon = Icons.Rounded.Widgets,
-                    title = "Виджет Android (Яндекс Музыка, Spotify)",
-                    subtitle = "Интерактивный системный виджет с кнопками плеера",
-                    selected = currentMode == SettingsStore.CARD_MODE_WIDGET,
-                    onClick = {
-                        onSelectMode(SettingsStore.CARD_MODE_WIDGET)
-                        onDismiss()
-                        onPickWidget()
-                    }
-                )
-
-                ModeItem(
-                    icon = Icons.Rounded.Layers,
-                    title = "Встроенное окно (DriveDeck)",
-                    subtitle = "Нативные Яндекс.Карты / Навигатор с управлением",
-                    selected = currentMode == SettingsStore.CARD_MODE_EMBEDDED,
-                    onClick = {
-                        onSelectMode(SettingsStore.CARD_MODE_EMBEDDED)
-                        onDismiss()
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Дополнительный пункт — настроить приложение для быстрого клика
-                Row(
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .clickable {
-                            onDismiss()
-                            onPickAppForSpeed()
-                        }
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.TouchApp,
-                            contentDescription = null,
-                            tint = s.textSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Назначить приложение по тапу",
-                            color = s.textPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = s.fontFamily
-                        )
-                        Text(
-                            text = "Что открывать при нажатии на спидометр",
-                            color = s.textSecondary,
-                            fontSize = 11.sp,
-                            fontFamily = s.fontFamily
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.TouchApp,
+                        contentDescription = null,
+                        tint = s.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Назначить приложение по тапу",
+                        color = s.textPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = s.fontFamily
+                    )
+                    Text(
+                        text = "Что открывать при нажатии на спидометр",
+                        color = s.textSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = s.fontFamily
+                    )
                 }
             }
         }
