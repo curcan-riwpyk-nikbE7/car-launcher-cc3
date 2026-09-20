@@ -73,7 +73,6 @@ import com.example.carlauncher.data.PackageChangeEffect
 import com.example.carlauncher.data.MediaControl
 import com.example.carlauncher.data.BtMusicStarter
 import com.example.carlauncher.data.SystemPrivileges
-import com.example.carlauncher.data.TaskMover
 import com.example.carlauncher.data.SettingsStore
 import com.example.carlauncher.data.FreeformLauncher
 import com.example.carlauncher.data.SplitScreen
