@@ -24,6 +24,7 @@ import com.example.carlauncher.data.AppRepository
 import com.example.carlauncher.data.rememberSpeedKmh
 import com.example.carlauncher.data.SettingsStore
 import com.example.carlauncher.data.SystemPrivileges
+import com.example.carlauncher.data.FreeformLauncher
 import com.example.carlauncher.data.TripComputer
 import com.example.carlauncher.data.WallpaperStore
 import com.example.carlauncher.data.ThemeStore
@@ -272,6 +273,11 @@ class MainActivity : ComponentActivity() {
         // Яркость по времени суток — на случай, если магнитолу завели
         // вечером, а последний раз пользовались днём
         runCatching { com.example.carlauncher.data.AutoBrightness.apply(this) }
+        // Если выбран режим карты или YouTube — восстанавливаем плавающее окно
+        if (SettingsStore.cardContentMode.value == SettingsStore.CARD_MODE_MAP ||
+            SettingsStore.cardContentMode.value == SettingsStore.CARD_MODE_YOUTUBE) {
+            FreeformLauncher.resumeActiveWindow(this)
+        }
     }
 
     /**

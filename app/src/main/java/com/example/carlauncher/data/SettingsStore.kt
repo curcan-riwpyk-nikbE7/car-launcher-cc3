@@ -109,7 +109,7 @@ object SettingsStore {
 
 
     /** Область плавающего окна: Card | RightColumn | RightHalf. */
-    val speedArea: MutableState<String> = mutableStateOf("RightColumn")
+    val speedArea: MutableState<String> = mutableStateOf("Card")
 
     /**
      * Вид спидометра поверх темы: "" | thin | ring | gauge.
@@ -186,7 +186,7 @@ object SettingsStore {
         val defaultMode =
             if (SystemPrivileges.canEmbedActivities(context)) "embed" else "freeform"
         speedMode.value = p.getString(K_SPEED_MODE, defaultMode) ?: defaultMode
-        speedArea.value = p.getString(K_SPEED_AREA, "RightColumn") ?: "RightColumn"
+        speedArea.value = p.getString(K_SPEED_AREA, "Card") ?: "Card"
         speedStyleOverride.value = p.getString(K_SPEED_STYLE, "") ?: ""
         speedLimitEnabled.value = p.getBoolean(K_LIMIT_ENABLED, false)
         speedLimitKmh.value = p.getInt(K_LIMIT_KMH, 60).coerceIn(30, 200)

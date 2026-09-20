@@ -72,7 +72,7 @@ object TaskMover {
     }
 
     /** Первая подходящая задача приложения (или null, если ещё не создана). */
-    private fun findTask(context: Context, packageName: String): ActivityManager.RunningTaskInfo? =
+    fun findTask(context: Context, packageName: String): ActivityManager.RunningTaskInfo? =
         runCatching {
             val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             // getAppTasks отдаёт только свои задачи, поэтому идём через

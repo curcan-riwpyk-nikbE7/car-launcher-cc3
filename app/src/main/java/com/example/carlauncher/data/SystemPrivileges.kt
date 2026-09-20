@@ -63,6 +63,12 @@ object SystemPrivileges {
      * Вызывать один раз при старте лаунчера.
      */
     fun enableForceResizable(context: Context): Boolean {
+        runCatching {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "settings put global enable_freeform_support 1"))
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "settings put global force_resizable_activities 1"))
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "settings put global enable_freeform_support 1"))
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "settings put global force_resizable_activities 1"))
+        }
         if (!canWriteSecureSettings(context)) return false
         return runCatching {
             Settings.Global.putInt(

@@ -30,38 +30,53 @@ import android.widget.Toast
  */
 object FreeformLauncher {
 
-    /** Устройство заявляет поддержку плавающих окон. */
+    var lastPackage: String? = null
+    var lastBounds: Rect? = null
+
+    /** Устройство заявляет поддержку плавающих окон (Android 7.0+). */
     fun hasFeature(context: Context): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
-            context.packageManager.hasSystemFeature(
-                PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT
-            )
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
 
     /** Режим включён в системных настройках (в том числе через adb). */
     fun isEnabledInSettings(context: Context): Boolean = runCatching {
         Settings.Global.getInt(context.contentResolver, "enable_freeform_support", 0) == 1
-    }.getOrDefault(false)
+    }.getOrDefault(true)
 
-    /** Можно ли пытаться запускать в плавающем окне. */
+    /** Можно ли запускать в плавающем окне (на всех версиях от Nougat). */
     fun isAvailable(context: Context): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
-            (hasFeature(context) || isEnabledInSettings(context))
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
 
     /**
-     * Запускает приложение в окне с заданными границами.
-     *
-     * @param bounds прямоугольник в пикселях экрана — обычно позиция карточки
-     * @return true, если запуск удался
+     * Восстанавливает активное плавающее окно при возврате в лаунчер.
      */
+    fun resumeActiveWindow(context: Context) {
+        val pkg = lastPackage ?: return
+        val b = lastBounds ?: return
+        if (b.width() > 100 && b.height() > 100) {
+            launchInBounds(context, pkg, b, prewarm = false)
+        }
+    }
+
     /**
-     * @param prewarm сначала запустить приложение обычным полноэкранным
-     *   способом, и лишь потом переоткрыть в окне.
+     * Закрывает активное плавающее окно при переключении на спидометр.
+     */
+    fun closeActiveWindow(context: Context) {
+        val pkg = lastPackage ?: return
+        lastPackage = null
+        lastBounds = null
+        runCatching {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $pkg"))
+        }
+        runCatching {
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "am force-stop $pkg"))
+        }
+    }
+
+    /**
+     * Запускает приложение в окне точно с заданными границами карточки.
      *
-     *   Нужно для YouTube и свежих версий Яндекс.Навигатора: они
-     *   отказываются рисоваться сразу в маленьком окне и показывают
-     *   пустоту. Сама TEYES боролась с этим несколькими прошивками —
-     *   в истории обновлений CC3 это описано прямым текстом, а в
-     *   настройках есть отдельный «второй вариант» запуска для YouTube.
+     * @param bounds прямоугольник в пикселях экрана
+     * @return true, если запуск удался
      */
     fun launchInBounds(
         context: Context,
@@ -72,11 +87,17 @@ object FreeformLauncher {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
             return AppRepository.launchPackage(context, packageName)
         }
+        if (bounds.isEmpty || bounds.width() <= 0 || bounds.height() <= 0) {
+            return false
+        }
+
+        lastPackage = packageName
+        lastBounds = Rect(bounds)
+
+        // Активируем свободные окна в системе
+        SystemPrivileges.enableForceResizable(context)
 
         if (prewarm) {
-            // Даём приложению стартовать нормально, а через мгновение
-            // просим переехать в окно. Задержка небольшая: дольше —
-            // и пользователь успеет увидеть полноэкранный интерфейс.
             AppRepository.launchPackage(context, packageName)
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 launchInBounds(context, packageName, bounds, prewarm = false)
@@ -85,19 +106,18 @@ object FreeformLauncher {
         }
 
         // Открываем сразу карту/видео, а не домашний экран приложения
-        val launch = AppIntents.bestIntent(context, packageName) ?: return false
+        val launch = AppIntents.bestIntent(context, packageName)
+            ?: context.packageManager.getLaunchIntentForPackage(packageName)
+            ?: return false
 
-        // MULTIPLE_TASK нужен, чтобы приложение открылось в новом окне,
-        // а не переиспользовало уже существующую полноэкранную задачу.
         launch.addFlags(
             Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
         )
 
         val opts = ActivityOptions.makeBasic().apply {
             runCatching { setLaunchBounds(bounds) }
-            // Просим именно плавающий режим. Константа скрыта в SDK,
-            // но значение стабильно: WINDOWING_MODE_FREEFORM = 5.
+            // WINDOWING_MODE_FREEFORM = 5
             runCatching {
                 val m = ActivityOptions::class.java
                     .getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
@@ -105,14 +125,39 @@ object FreeformLauncher {
             }
         }
 
-        return runCatching {
+        val started = runCatching {
             context.startActivity(launch, opts.toBundle())
             true
-        }.getOrElse {
-            // Не вышло плавающим — открываем обычным способом,
-            // чтобы нажатие не осталось без результата.
-            AppRepository.launchPackage(context, packageName)
+        }.getOrDefault(false)
+
+        // Если задача приложения уже была запущена, принудительно переключаем её режим на Freeform
+        runCatching {
+            val task = TaskMover.findTask(context, packageName)
+            if (task != null) {
+                val atmClass = Class.forName("android.app.ActivityTaskManager")
+                val atm = atmClass.getMethod("getService").invoke(null)
+                runCatching {
+                    val mMode = atm.javaClass.getMethod(
+                        "setTaskWindowingMode",
+                        Int::class.javaPrimitiveType,
+                        Int::class.javaPrimitiveType,
+                        Boolean::class.javaPrimitiveType
+                    )
+                    mMode.invoke(atm, task.id, 5, false)
+                }
+                runCatching {
+                    val mResize = atm.javaClass.getMethod(
+                        "resizeTask",
+                        Int::class.javaPrimitiveType,
+                        Rect::class.java,
+                        Int::class.javaPrimitiveType
+                    )
+                    mResize.invoke(atm, task.id, bounds, 0)
+                }
+            }
         }
+
+        return started || AppRepository.launchPackage(context, packageName)
     }
 
     /**

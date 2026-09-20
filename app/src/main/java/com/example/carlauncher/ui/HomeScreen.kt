@@ -296,31 +296,14 @@ fun HomeScreen(
     }
 
     val launchFreeform: (String) -> Unit = { pkg ->
-        // Сначала проверяем, что ГУ ВООБЩЕ заявляет поддержку плавающих
-        // окон (фича прошивки). Флага enable_freeform_support мало: без
-        // фичи система молча игнорирует и границы, и режим — приложение
-        // уходит на весь экран после лишнего prewarm-мигания. Поэтому
-        // без фичи сразу честно открываем на весь экран и говорим почему.
-        if (!FreeformLauncher.hasFeature(context)) {
-            android.widget.Toast.makeText(
-                context,
-                "ГУ не умеет плавающие окна — открываю на весь экран",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+        val area = runCatching {
+            FreeformLauncher.Area.valueOf(SettingsStore.speedArea.value)
+        }.getOrDefault(FreeformLauncher.Area.Card)
+        val b = FreeformLauncher.boundsFor(area, cardBounds, screenPx.x, screenPx.y)
+        if (b.isEmpty) {
             AppRepository.launchPackage(context, pkg)
         } else {
-            val area = runCatching {
-                FreeformLauncher.Area.valueOf(SettingsStore.speedArea.value)
-            }.getOrDefault(FreeformLauncher.Area.RightColumn)
-            val b = FreeformLauncher.boundsFor(area, cardBounds, screenPx.x, screenPx.y)
-            if (b.isEmpty) AppRepository.launchPackage(context, pkg)
-            else FreeformLauncher.launchInBounds(
-                context, pkg, b,
-                // Видео и карты сначала открываем на весь экран, иначе
-                // они не желают рисоваться в окне. Для остальных
-                // приложений лишний шаг не нужен — он заметен глазом.
-                prewarm = SettingsStore.prewarmWindow.value && FreeformLauncher.needsPrewarm(pkg)
-            )
+            FreeformLauncher.launchInBounds(context, pkg, b, prewarm = false)
         }
     }
 
@@ -454,6 +437,7 @@ fun HomeScreen(
                     embeddedPackage = null,
                     onEmbedFailed = { embedFailed = true },
                     onBackToSpeed = {
+                        FreeformLauncher.closeActiveWindow(context)
                         SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_SPEED)
                         revision++
                     },
@@ -819,6 +803,7 @@ fun HomeScreen(
                     onBounds = { r -> cardBounds.set(r) },
                     onEmbedFailed = { embedFailed = true },
                     onBackToSpeed = {
+                        FreeformLauncher.closeActiveWindow(context)
                         SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_SPEED)
                         revision++
                     },
@@ -930,6 +915,38 @@ fun HomeScreen(
             onSelectMode = { mode ->
                 SettingsStore.setCardContentMode(mode)
                 revision++
+                if (mode == SettingsStore.CARD_MODE_MAP || mode == SettingsStore.CARD_MODE_YOUTUBE) {
+                    val targetPkg = if (mode == SettingsStore.CARD_MODE_MAP) {
+                        val navCandidates = listOf(
+                            "ru.yandex.yandexnavi",
+                            "ru.yandex.yandexmaps",
+                            "ru.dublgis.dgismobile",
+                            "com.google.android.apps.maps",
+                            "com.waze",
+                            "cityguide.probki.net",
+                            "com.navitel",
+                            "com.sygic.aura"
+                        )
+                        AppRepository.findFirstInstalled(context, navCandidates, listOf("Навигатор", "Карты", "Яндекс Навигатор", "2ГИС", "Maps"))
+                            ?: "ru.yandex.yandexnavi"
+                    } else {
+                        val ytCandidates = listOf(
+                            "com.google.android.youtube",
+                            "app.revanced.android.youtube",
+                            "com.vanced.android.youtube",
+                            "com.google.android.apps.youtube.mango",
+                            "org.videolan.vlc",
+                            "com.mxtech.videoplayer.ad"
+                        )
+                        AppRepository.findFirstInstalled(context, ytCandidates, AppRepository.VIDEO_LABELS)
+                            ?: "com.google.android.youtube"
+                    }
+                    if (cardBounds.width() > 100 && cardBounds.height() > 100) {
+                        FreeformLauncher.launchInBounds(context, targetPkg, cardBounds)
+                    }
+                } else if (mode == SettingsStore.CARD_MODE_SPEED) {
+                    FreeformLauncher.closeActiveWindow(context)
+                }
             },
             onPickAppForSpeed = {
                 pickerSlot = ShortcutStore.SLOT_SPEED

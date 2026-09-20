@@ -34,10 +34,19 @@ import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.OpenInFull
+import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.text.style.TextAlign
+import com.example.carlauncher.data.FreeformLauncher
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -110,6 +119,7 @@ fun CarCard(
     val context = LocalContext.current
     val s = LocalThemeSpec.current
     val cardHaptic = LocalHapticFeedback.current
+    var currentCardBounds by remember { mutableStateOf(android.graphics.Rect()) }
 
     Box(
         modifier = modifier
@@ -132,14 +142,14 @@ fun CarCard(
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInWindow()
                 val sz = coords.size
-                onBounds(
-                    android.graphics.Rect(
-                        pos.x.toInt(),
-                        pos.y.toInt(),
-                        pos.x.toInt() + sz.width,
-                        pos.y.toInt() + sz.height
-                    )
+                val r = android.graphics.Rect(
+                    pos.x.toInt(),
+                    pos.y.toInt(),
+                    pos.x.toInt() + sz.width,
+                    pos.y.toInt() + sz.height
                 )
+                currentCardBounds = r
+                onBounds(r)
             }
     ) {
         if (s.showCarImage) {
@@ -284,18 +294,56 @@ fun CarCard(
                     ?: "ru.yandex.yandexnavi"
             }
             val pkgToEmbed = embeddedPackage ?: navPkg
+
+            // Автоматический запуск окна точно в границах карточки при получении геометрии
+            LaunchedEffect(pkgToEmbed, currentCardBounds.width(), currentCardBounds.height()) {
+                if (currentCardBounds.width() > 100 && currentCardBounds.height() > 100) {
+                    FreeformLauncher.launchInBounds(context, pkgToEmbed, currentCardBounds)
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
+                    .background(s.carCardBg)
+                    .clickable {
+                        if (currentCardBounds.width() > 100 && currentCardBounds.height() > 100) {
+                            FreeformLauncher.launchInBounds(context, pkgToEmbed, currentCardBounds)
+                        }
+                    }
             ) {
-                EmbeddedAppView(
-                    packageName = pkgToEmbed,
-                    modifier = Modifier.fillMaxSize(),
-                    onFailed = onEmbedFailed
-                )
+                // Фоновая подложка (видна пока окно загружается или если окно закрыли крестиком)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Navigation,
+                        contentDescription = null,
+                        tint = s.accent,
+                        modifier = Modifier.size(46.dp)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Окно навигации",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Нажмите, чтобы открыть карту в окне",
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
-                // Маленькие полупрозрачные кнопки управления окном в правом верхнем углу (не перекрывают маневры и Алису)
+                // Кнопки быстрого управления карточкой в правом верхнем углу
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -308,7 +356,7 @@ fun CarCard(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.55f))
+                            .background(Color.Black.copy(alpha = 0.65f))
                             .combinedClickable(
                                 onClick = onBackToSpeed,
                                 onLongClick = onSpeedLongClick
@@ -328,7 +376,7 @@ fun CarCard(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.55f))
+                            .background(Color.Black.copy(alpha = 0.65f))
                             .clickable { onOpenFullscreen() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -356,18 +404,53 @@ fun CarCard(
             val ytPkg = AppRepository.findFirstInstalled(context, ytCandidates, AppRepository.VIDEO_LABELS)
                 ?: "com.google.android.youtube"
 
+            // Автоматический запуск окна YouTube в границах карточки
+            LaunchedEffect(ytPkg, currentCardBounds.width(), currentCardBounds.height()) {
+                if (currentCardBounds.width() > 100 && currentCardBounds.height() > 100) {
+                    FreeformLauncher.launchInBounds(context, ytPkg, currentCardBounds)
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
+                    .background(s.carCardBg)
+                    .clickable {
+                        if (currentCardBounds.width() > 100 && currentCardBounds.height() > 100) {
+                            FreeformLauncher.launchInBounds(context, ytPkg, currentCardBounds)
+                        }
+                    }
             ) {
-                EmbeddedAppView(
-                    packageName = ytPkg,
-                    modifier = Modifier.fillMaxSize(),
-                    onFailed = onEmbedFailed
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayCircle,
+                        contentDescription = null,
+                        tint = Color(0xFFFF3B30),
+                        modifier = Modifier.size(46.dp)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Окно YouTube",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Нажмите, чтобы открыть видео в окне",
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
-                // Маленькие полупрозрачные кнопки управления окном в правом верхнем углу
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -379,16 +462,18 @@ fun CarCard(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .clickable {
-                                onSpeedLongClick?.invoke()
-                            },
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .combinedClickable(
+                                onClick = onBackToSpeed,
+                                onLongClick = onSpeedLongClick
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "▶",
-                            color = Color.White,
-                            fontSize = 14.sp
+                        Icon(
+                            imageVector = Icons.Rounded.Speed,
+                            contentDescription = "Спидометр",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
 
@@ -396,16 +481,15 @@ fun CarCard(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .clickable {
-                                onOpenFullscreen()
-                            },
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .clickable { onOpenFullscreen() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "⤢",
-                            color = Color.White,
-                            fontSize = 15.sp
+                        Icon(
+                            imageVector = Icons.Rounded.OpenInFull,
+                            contentDescription = "На весь экран",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
