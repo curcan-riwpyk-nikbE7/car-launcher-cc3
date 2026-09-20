@@ -57,8 +57,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.example.carlauncher.R
 import com.example.carlauncher.data.AppInfo
+import com.example.carlauncher.data.AppRepository
 import com.example.carlauncher.data.SettingsStore
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -105,6 +107,7 @@ fun CarCard(
     onExpand: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val s = LocalThemeSpec.current
     val cardHaptic = LocalHapticFeedback.current
 
@@ -308,7 +311,14 @@ fun CarCard(
 
         // Приложение занимает карточку целиком на весь экран без рамок и лишних полос
         if (contentMode == SettingsStore.CARD_MODE_EMBEDDED || embeddedPackage != null) {
-            val pkgToEmbed = embeddedPackage ?: speedApp?.packageName ?: "ru.yandex.yandexnavi"
+            val navPkg = if (speedApp != null && AppRepository.NAVIGATION.contains(speedApp.packageName)) {
+                speedApp.packageName
+            } else {
+                AppRepository.findFirstInstalled(context, AppRepository.NAVIGATION)
+                    ?: speedApp?.packageName
+                    ?: "ru.yandex.yandexmaps"
+            }
+            val pkgToEmbed = embeddedPackage ?: navPkg
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -319,10 +329,62 @@ fun CarCard(
                     modifier = Modifier.fillMaxSize(),
                     onFailed = onEmbedFailed
                 )
-                NaviQuickOverlay(
-                    modifier = Modifier.align(Alignment.TopStart),
-                    navigatorPkg = pkgToEmbed
-                )
+
+                // Верхняя панель управления: быстрые точки слева, спидометр и разворот справа
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopStart)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NaviQuickOverlay(
+                        navigatorPkg = pkgToEmbed
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Возврат к классическому спидометру
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .combinedClickable(
+                                    onClick = onBackToSpeed,
+                                    onLongClick = onSpeedLongClick
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Speed,
+                                contentDescription = "Спидометр",
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        // Развернуть на полный экран
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .clickable { onOpenFullscreen() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.OpenInFull,
+                                contentDescription = "На весь экран",
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
             }
             return@Box
         }
