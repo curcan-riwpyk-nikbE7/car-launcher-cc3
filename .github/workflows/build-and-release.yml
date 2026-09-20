@@ -43,6 +43,13 @@ jobs:
           curl -s -L https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/platform.pk8 -o keys/platform.pk8
           curl -s -L https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/platform.x509.pem -o keys/platform.x509.pem
 
+      - name: Build Hidden API Stub JAR
+        run: |
+          mkdir -p stub-out
+          mkdir -p app/libs
+          javac -cp ${ANDROID_HOME}/platforms/android-34/android.jar -d stub-out app/src/main/stub/android/app/ActivityView.java
+          jar cf app/libs/framework-stub.jar -C stub-out .
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -71,7 +78,7 @@ jobs:
       - name: Upload APKs as Workflow Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: CarLauncher-v4.9-APKs
+          name: CarLauncher-v7.0-APKs
           path: |
             KINGSAID-TESTKEY.apk
             KINGSAID-PIP.apk
@@ -81,18 +88,20 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           tag_name: ${{ github.ref_name }}
-          name: "${{ github.ref_name }} — Исправление тайлов карты CARTO Dark и User-Agent"
+          name: "${{ github.ref_name }} - Полноценное встраивание ActivityView (LecoAuto/DriveDeck)"
           body: |
-            ## Что нового в ${{ github.ref_name }}
-
-            - **Исправлена блокировка тайлов карты (HTTP 403):** переход на надежный высокоскоростной автомобильный CDN CARTO Dark Matter.
-            - **Соответствие политике OSM:** настроен уникальный автомобильный заголовок User-Agent.
-            - **Очистка кэша:** автоматическое удаление поврежденных/заблокированных плиток из памяти устройства.
-            - **Нативный ночной стиль:** высококонтрастная векторная карта дорог специально для автомобильных экранов.
-
+            ## Релиз ${{ github.ref_name }}
+            
+            - **Встроенные приложения в карточке через ActivityView (LecoAuto/DriveDeck):**
+              - Переход с ненадежного VirtualDisplay на официальный системный компонент Android 10 `android.app.ActivityView`.
+              - Аппаратно-ускоренный рендеринг Яндекс Карт / Яндекс Навигатора / YouTube прямо внутри скругленной карточки.
+              - Никаких всплывающих свободных окон, рамок заголовков и системных кнопок [ 🗖 ] [ ✕ ].
+              - Полная поддержка нативных тач-жестов (зум, перемещение карты) средствами AOSP InputDispatcher.
+              - Прямой запуск через LaunchIntent (устранена проблема Trampoline/Router-активностей, сбрасывавшихся в черный экран).
+            
             ## Файлы
-            - `KINGSAID-TESTKEY.apk` — сборка с ключом AOSP testkey (для MTK6762 / test-keys)
-            - `KINGSAID-PIP.apk` — сборка с ключом platform
+            - `KINGSAID-PIP.apk` - рекомендуемая сборка с ключом платформы и системными правами
+            - `KINGSAID-TESTKEY.apk` - сборка с ключом test-keys
           files: |
             KINGSAID-TESTKEY.apk
             KINGSAID-PIP.apk

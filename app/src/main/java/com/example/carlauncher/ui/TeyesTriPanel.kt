@@ -71,6 +71,7 @@ fun TeyesTriPanel(
     onBounds: (android.graphics.Rect) -> Unit,
     onEmbedFailed: () -> Unit,
     onBackToSpeed: () -> Unit,
+    navApp: AppInfo? = null,
     modifier: Modifier = Modifier
 ) {
     val s = LocalThemeSpec.current
@@ -124,7 +125,7 @@ fun TeyesTriPanel(
                 contentMode = SettingsStore.cardContentMode.value,
                 widgetId = SettingsStore.cardWidgetId.value,
                 onPickWidget = onPickWidget,
-                embeddedPackage = null,
+                embeddedPackage = navApp?.packageName,
                 onEmbedFailed = onEmbedFailed,
                 onBackToSpeed = onBackToSpeed,
                 onOpenFullscreen = {

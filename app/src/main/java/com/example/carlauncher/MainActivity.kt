@@ -273,11 +273,6 @@ class MainActivity : ComponentActivity() {
         // Яркость по времени суток — на случай, если магнитолу завели
         // вечером, а последний раз пользовались днём
         runCatching { com.example.carlauncher.data.AutoBrightness.apply(this) }
-        // Если выбран режим карты или YouTube — восстанавливаем плавающее окно
-        if (SettingsStore.cardContentMode.value == SettingsStore.CARD_MODE_MAP ||
-            SettingsStore.cardContentMode.value == SettingsStore.CARD_MODE_YOUTUBE) {
-            FreeformLauncher.resumeActiveWindow(this)
-        }
     }
 
     /**

@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.carlauncher"
         minSdk = 23          // Android 6.0 — типовые китайские ГУ
         targetSdk = 30       // намеренно 30: на targetSdk 31+ старые ГУ ломают часть intent'ов
-        versionCode = 69
-        versionName = "6.9"
+        versionCode = 70
+        versionName = "7.0"
 
         ndk {
             // Головные устройства все на ARM. Библиотеки Vosk для x86
@@ -161,6 +161,9 @@ android {
 }
 
 dependencies {
+    // Системный hidden-api стаб android.app.ActivityView для компиляции (не попадает в APK)
+    compileOnly(files("libs/framework-stub.jar"))
+
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
     implementation("androidx.core:core-ktx:1.12.0")
@@ -188,3 +191,23 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
 }
+
+// Автоматическая сборка стаб-джарника ActivityView для компиляции без включения в APK
+val stubClassesDir = layout.buildDirectory.dir("intermediates/stub-classes")
+val compileStub by tasks.registering(JavaCompile::class) {
+    source = fileTree("src/main/stub")
+    classpath = files(android.bootClasspath)
+    destinationDirectory.set(stubClassesDir)
+}
+
+val stubJar by tasks.registering(Jar::class) {
+    dependsOn(compileStub)
+    from(stubClassesDir)
+    archiveFileName.set("framework-stub.jar")
+    destinationDirectory.set(file("libs"))
+}
+
+tasks.named("preBuild") {
+    dependsOn(stubJar)
+}
+

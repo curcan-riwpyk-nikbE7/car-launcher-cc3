@@ -302,18 +302,6 @@ fun HomeScreen(
         android.graphics.Point(dm.widthPixels, dm.heightPixels)
     }
 
-    val launchFreeform: (String) -> Unit = { pkg ->
-        val area = runCatching {
-            FreeformLauncher.Area.valueOf(SettingsStore.speedArea.value)
-        }.getOrDefault(FreeformLauncher.Area.Card)
-        val b = FreeformLauncher.boundsFor(area, cardBounds, screenPx.x, screenPx.y)
-        if (b.isEmpty) {
-            AppRepository.launchPackage(context, pkg)
-        } else {
-            FreeformLauncher.launchInBounds(context, pkg, b, prewarm = false)
-        }
-    }
-
     // Тап по спидометру.
     //
     // Поведение как в штатных лаунчерах: тап по спидометру — карточка
@@ -814,6 +802,7 @@ fun HomeScreen(
                         SettingsStore.setCardContentMode(SettingsStore.CARD_MODE_SPEED)
                         revision++
                     },
+                    navApp = navApp,
                     modifier = Modifier.fillMaxWidth().weight(1f)
                 )
             }
@@ -947,10 +936,7 @@ fun HomeScreen(
                         )
                         AppRepository.findFirstInstalled(context, ytCandidates, AppRepository.VIDEO_LABELS)
                             ?: "com.google.android.youtube"
-                    }
-                    if (cardBounds.width() > 100 && cardBounds.height() > 100) {
-                        FreeformLauncher.launchInBounds(context, targetPkg, cardBounds)
-                    }
+                    FreeformLauncher.closeActiveWindow(context)
                 } else if (mode == SettingsStore.CARD_MODE_SPEED) {
                     FreeformLauncher.closeActiveWindow(context)
                 }
