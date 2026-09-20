@@ -295,16 +295,70 @@ fun CarCard(
         }
 
         if (contentMode == SettingsStore.CARD_MODE_YOUTUBE) {
+            val ytCandidates = listOf(
+                "com.google.android.youtube",
+                "app.revanced.android.youtube",
+                "com.vanced.android.youtube",
+                "com.google.android.apps.youtube.mango",
+                "org.videolan.vlc",
+                "com.mxtech.videoplayer.ad"
+            )
+            val ytPkg = AppRepository.findFirstInstalled(context, ytCandidates, AppRepository.VIDEO_LABELS)
+                ?: "com.google.android.youtube"
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(s.cardCorner))
             ) {
-                EmbeddedYouTubeView(
-                    onOpenFullscreen = onOpenFullscreen,
-                    onChangeMode = onSpeedLongClick,
-                    modifier = Modifier.fillMaxSize()
+                EmbeddedAppView(
+                    packageName = ytPkg,
+                    modifier = Modifier.fillMaxSize(),
+                    onFailed = onEmbedFailed
                 )
+
+                // Маленькие полупрозрачные кнопки управления окном в правом верхнем углу
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .clickable {
+                                onSpeedLongClick?.invoke()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "▶",
+                            color = Color.White,
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .clickable {
+                                onOpenFullscreen()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "⤢",
+                            color = Color.White,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
             }
             return@Box
         }

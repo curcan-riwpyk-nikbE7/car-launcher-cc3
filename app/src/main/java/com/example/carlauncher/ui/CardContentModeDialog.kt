@@ -87,8 +87,8 @@ fun CardContentModeDialog(
 
                 ModeItem(
                     icon = Icons.Rounded.PlayCircle,
-                    title = "YouTube (видеоплеер)",
-                    subtitle = "Живой плеер YouTube прямо в карточке с поиском",
+                    title = "YouTube",
+                    subtitle = "Нативное приложение YouTube прямо в карточке",
                     selected = currentMode == SettingsStore.CARD_MODE_YOUTUBE,
                     onClick = {
                         onSelectMode(SettingsStore.CARD_MODE_YOUTUBE)

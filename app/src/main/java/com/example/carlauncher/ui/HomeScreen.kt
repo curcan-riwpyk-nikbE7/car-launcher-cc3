@@ -472,7 +472,19 @@ fun HomeScreen(
                                 }
                             }
                             SettingsStore.CARD_MODE_YOUTUBE -> {
-                                AppRepository.launchFirstAvailable(context, AppRepository.VIDEO)
+                                val ytCandidates = listOf(
+                                    "com.google.android.youtube",
+                                    "app.revanced.android.youtube",
+                                    "com.vanced.android.youtube",
+                                    "com.google.android.apps.youtube.mango",
+                                    "org.videolan.vlc",
+                                    "com.mxtech.videoplayer.ad"
+                                )
+                                val ytPkg = AppRepository.findFirstInstalled(context, ytCandidates, AppRepository.VIDEO_LABELS)
+                                    ?: "com.google.android.youtube"
+                                if (!TaskMover.moveToMainDisplay(context, ytPkg)) {
+                                    AppRepository.launchFirstAvailable(context, ytCandidates, labels = AppRepository.VIDEO_LABELS)
+                                }
                             }
                             else -> {
                                 val a = speedApp

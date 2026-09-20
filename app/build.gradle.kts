@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.carlauncher"
         minSdk = 23          // Android 6.0 — типовые китайские ГУ
         targetSdk = 30       // намеренно 30: на targetSdk 31+ старые ГУ ломают часть intent'ов
-        versionCode = 65
-        versionName = "6.5"
+        versionCode = 66
+        versionName = "6.6"
 
         ndk {
             // Головные устройства все на ARM. Библиотеки Vosk для x86
